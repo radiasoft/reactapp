@@ -7,9 +7,11 @@ var APP_SCHEMA = {
     ]
 };
 
-function app() {
-    return SRC.header(APP_SCHEMA.header);
+class App {
+    render() {
+        return SRC.header(APP_SCHEMA.header);
+    }
 }
 
-const rootElement = app()
+const rootElement = new App().render()
 ReactDOM.render(rootElement, document.getElementById('root'))
