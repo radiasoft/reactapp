@@ -26,7 +26,6 @@ class App extends SRComponentBase {
 
     render() {
         return this.app(
-            this.header(),
             this.panel('modelA'),
         );
     }

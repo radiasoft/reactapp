@@ -1,4 +1,13 @@
 function e({type, props={}, children=[]}) {
+    // TODO(e-carlin): I don't think instanceof always works
+    // https://web.mit.edu/jwalden/www/isArray.html
+    if(children instanceof Array) {
+        return React.createElement(
+            type,
+            props,
+            ...children
+        );
+    }
     return React.createElement(
         type,
         props,
@@ -9,10 +18,15 @@ function e({type, props={}, children=[]}) {
 export class SRComponentBase {
 
     app(...components) {
-        return this.div({children: components});
+        return this.div({
+            children: [
+                this.header(),
+                ...components
+            ]
+        });
     }
 
-    button({props={}, text=''}) {
+    button({props={}, text}) {
         return e({
             type: 'button',
             props: props,
@@ -38,7 +52,9 @@ export class SRComponentBase {
     header() {
         return this.div({
             props: {className: 'topnav'},
-            children: this.APP_SCHEMA.header.map((t) => this.button({text: t}))
+            children: this.APP_SCHEMA.header.map(
+                (t) => this.button({text: t})
+            )
         });
     }
 
@@ -88,10 +104,11 @@ export class SRComponentBase {
 
     // TODO(e-carlin): sort
     editorPane(modelKey) {
-        const c = this.APP_SCHEMA.view[modelKey].basic.map((f) => {
-            return this.editorField(modelKey, f)
-        })
-        return this.div({children: c});
+        return this.div({
+            children: this.APP_SCHEMA.view[modelKey].basic.map(
+                (f) => this.editorField(modelKey, f)
+            )
+        });
     }
 
     panelBody(modelKey) {
@@ -105,10 +122,9 @@ export class SRComponentBase {
 
     panelHeader(modelKey) {
         return this.div({
-            props: {className: 'panel-heading'}, // TODO(e-carlin): className
-            children: [
-                this.h1(this.APP_SCHEMA.view[modelKey].title) // TODO(e-carlin): convert modelKey to title
-            ]
+            props: {className: 'panel-heading'},
+            children: this.h1(this.APP_SCHEMA.view[modelKey].title)
+
         })
     }
 }
