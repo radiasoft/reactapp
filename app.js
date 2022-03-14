@@ -22,6 +22,13 @@ class App extends SRComponentBase {
                 }
             }
         }
+        this.APP_STATE = {
+            model: {
+                modelA: {
+                    foo: 'a default value for foo'
+                }
+            }
+        };
     }
 
     render() {

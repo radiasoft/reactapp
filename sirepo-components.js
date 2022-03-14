@@ -18,6 +18,7 @@ function e({type, props={}, children=[]}) {
 export class SRComponentBase {
 
     app(...components) {
+        console.log('react is ', React)
         return this.div({
             children: [
                 this.header(),
@@ -86,9 +87,17 @@ export class SRComponentBase {
         });
     }
 
-    // TODO(e-carlin): sort
-    editorValue() {
-
+    editorValue(modelKey, fieldName) {
+        return e({
+            type: 'input',
+            props: {
+                type: 'text',
+                onChange: (event) => {
+                    this.APP_STATE.model[modelKey][fieldName] = event.target.value;
+                },
+                value: this.APP_STATE.model[modelKey][fieldName]
+            },
+        });
     }
 
     // TODO(e-carlin): sort
@@ -97,7 +106,7 @@ export class SRComponentBase {
         return this.div({
             children: [
                 this.editorLabel(m[0]),
-                this.editorValue()
+                this.editorValue(modelKey, fieldName)
             ]
         })
     }
