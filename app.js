@@ -1,4 +1,4 @@
-import {SRC} from './sirepo-components.js'
+import {SRBase} from './sirepo-components.js'
 
 var APP_SCHEMA = {
     header: [
@@ -7,9 +7,11 @@ var APP_SCHEMA = {
     ]
 };
 
-class App {
+class App extends SRBase {
     render() {
-        return SRC.header(APP_SCHEMA.header);
+        return this.app(
+            this.header(APP_SCHEMA.header)
+        );
     }
 }
 

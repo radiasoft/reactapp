@@ -9,8 +9,13 @@ function e({type, props={}, children=[]}) {
     );
 }
 
-export class SRC {
-    static button({props={}, text=''}) {
+export class SRBase {
+
+    app(...components) {
+        return this.div({children: components});
+    }
+
+    button({props={}, text=''}) {
         return e({
             type: 'button',
             props: props,
@@ -18,7 +23,7 @@ export class SRC {
         });
     };
 
-    static div({props={}, children=[]}) {
+    div({props={}, children=[]}) {
         return e({
             type: 'div',
             props: props,
@@ -26,7 +31,7 @@ export class SRC {
         });
     };
 
-    static header(tabs) {
+    header(tabs) {
         return this.div({
             props: {className: 'topnav'},
             children: tabs.map((t) => this.button({text: t}))
