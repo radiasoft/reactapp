@@ -1,19 +1,33 @@
-import {SRBase} from './sirepo-components.js'
+import {SRComponentBase} from './sirepo-components.js'
 
-class App extends SRBase {
+class App extends SRComponentBase {
     constructor() {
         super();
         this.APP_SCHEMA = {
             header: [
                 'source',
                 'visualization'
-            ]
+            ],
+            model: {
+                modelA: {
+                    foo: ['Foo var', 'String', '']
+                }
+            },
+            view: {
+                modelA: {
+                    title: 'Model A',
+                    basic: [
+                        'foo',
+                    ]
+                }
+            }
         }
     }
 
     render() {
         return this.app(
-            this.header()
+            this.header(),
+            this.panel('modelA'),
         );
     }
 }

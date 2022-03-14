@@ -1,15 +1,12 @@
 function e({type, props={}, children=[]}) {
-    console.log(`type=${type} props=${JSON.stringify(props)} children=${JSON.stringify(children)}`)
     return React.createElement(
         type,
         props,
-        // TODO(e-carlin): for strings this exapnds to array.
-        // Could that be problematic?
-        ...children
+        children
     );
 }
 
-export class SRBase {
+export class SRComponentBase {
 
     app(...components) {
         return this.div({children: components});
@@ -31,6 +28,13 @@ export class SRBase {
         });
     };
 
+    h1(text) {
+        return e({
+            type: 'h1',
+            children: text
+        })
+    }
+
     header() {
         return this.div({
             props: {className: 'topnav'},
@@ -38,7 +42,73 @@ export class SRBase {
         });
     }
 
-    panel() {
+    panel(modelKey) {
+        return this.div({
+            props: {className: 'col-sm-12'},
+            children: [
+                this.div({
+                    props: {className: 'panel panel-info'},
+                    children: [
+                        this.panelHeader(modelKey),
+                        this.panelBody(modelKey)
+                    ]
+                })
+            ]
+        })
+    }
 
+    // TODO(e-carlin): sort
+    editorLabel(label) {
+        return e({
+            type: 'label',
+            children: [
+                e({
+                    type: 'span',
+                    children: label
+                })
+            ]
+        });
+    }
+
+    // TODO(e-carlin): sort
+    editorValue() {
+
+    }
+
+    // TODO(e-carlin): sort
+    editorField(modelKey, fieldName) {
+        const m = this.APP_SCHEMA.model[modelKey][fieldName];
+        return this.div({
+            children: [
+                this.editorLabel(m[0]),
+                this.editorValue()
+            ]
+        })
+    }
+
+    // TODO(e-carlin): sort
+    editorPane(modelKey) {
+        const c = this.APP_SCHEMA.view[modelKey].basic.map((f) => {
+            return this.editorField(modelKey, f)
+        })
+        return this.div({children: c});
+    }
+
+    panelBody(modelKey) {
+        return this.div({
+            props: {className: 'panel-body'},
+            children: [
+                this.editorPane(modelKey)
+            ]
+        })
+    }
+
+    panelHeader(modelKey) {
+        return this.div({
+            props: {className: 'panel-heading'}, // TODO(e-carlin): className
+            children: [
+                this.h1(this.APP_SCHEMA.view[modelKey].title) // TODO(e-carlin): convert modelKey to title
+            ]
+        })
     }
 }
