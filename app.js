@@ -1,16 +1,19 @@
 import {SRBase} from './sirepo-components.js'
 
-var APP_SCHEMA = {
-    header: [
-        'source',
-        'visualization'
-    ]
-};
-
 class App extends SRBase {
+    constructor() {
+        super();
+        this.APP_SCHEMA = {
+            header: [
+                'source',
+                'visualization'
+            ]
+        }
+    }
+
     render() {
         return this.app(
-            this.header(APP_SCHEMA.header)
+            this.header()
         );
     }
 }

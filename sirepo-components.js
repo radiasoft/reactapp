@@ -31,10 +31,14 @@ export class SRBase {
         });
     };
 
-    header(tabs) {
+    header() {
         return this.div({
             props: {className: 'topnav'},
-            children: tabs.map((t) => this.button({text: t}))
+            children: this.APP_SCHEMA.header.map((t) => this.button({text: t}))
         });
+    }
+
+    panel() {
+
     }
 }
