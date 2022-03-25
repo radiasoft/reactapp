@@ -2,17 +2,23 @@ function e({type, props={}, children=[]}) {
     // TODO(e-carlin): I don't think instanceof always works
     // https://web.mit.edu/jwalden/www/isArray.html
     if(children instanceof Array) {
-        return React.createElement(
+        var elem = React.createElement(
             type,
             props,
             ...children
         );
+
+        return elem;
     }
-    return React.createElement(
+    var elem = React.createElement(
         type,
         props,
         children
     );
+    if (type == 'button'){
+        console.log('ELEM: ', elem);
+    }
+    return elem;
 }
 
 export class SRComponentBase {
@@ -59,7 +65,7 @@ export class SRComponentBase {
         });
     }
 
-    panel(modelKey) {
+    panel(modelKey, children={}) {
         return this.div({
             props: {className: 'col-sm-12'},
             children: [
@@ -67,7 +73,8 @@ export class SRComponentBase {
                     props: {className: 'panel panel-info'},
                     children: [
                         this.panelHeader(modelKey),
-                        this.panelBody(modelKey)
+                        this.panelBody(modelKey),
+                        this.div(children),
                     ]
                 })
             ]
