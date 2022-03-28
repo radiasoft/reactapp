@@ -67,7 +67,7 @@ export class SRComponentBase {
 
     panel(modelKey, children={}) {
         return this.div({
-            props: {className: 'col-sm-12'},
+            props: {className: 'col-sm-12', id: 'panel'},
             children: [
                 this.div({
                     props: {className: 'panel panel-info'},
@@ -141,6 +141,24 @@ export class SRComponentBase {
             props: {className: 'panel-heading'},
             children: this.h1(this.APP_SCHEMA.view[modelKey].title)
 
+        })
+    }
+
+    span({props={}, children=[]}) {
+        return e({
+            type: 'span',
+            props: props,
+            children: children
+        });
+    };
+
+    spinner() {
+        return this.div({
+            props: {className: 'btn btn-lg'},
+            children: [this.span({
+                props: {className: 'glyphicon glyphicon-refresh spinning'}
+            }
+            ), '   Running Simulation...']
         })
     }
 }

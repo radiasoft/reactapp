@@ -12,10 +12,10 @@ class App extends SRComponentBase {
             ],
             model: {
                 modelA: {
-                    foo: ['Enter SSN', 'String', '']
+                    foo: ['Enter Email Address', 'String', '']
                 },
                 modelB: {
-                    foo: ['Enter Credit Card Number', 'String', '']
+                    foo: ['Enter Last Name', 'String', '']
                 },
             },
             view: {
@@ -58,18 +58,28 @@ class App extends SRComponentBase {
 
     render() {
         return this.app(
-
                 this.panel('modelA', {
                     children: [
                         this.editorField('modelB', 'foo'),
                         React.createElement(
-                                'button',
-                                { onClick: () => console.log('Starting Simualation') },
-                                'Start Simulation'
+                            'button',
+                            {onClick: () => {
+                                console.log('Starting Simualation');
+                                ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
+                                }
+                            },
+                            'Start Simulation'
                         ),
-                        this.button({props:{onClick: ()=>{
-                            console.log('Ending Simulation')
-                        }}, text:'End Simulation'}),
+                        this.button({
+                            props:{
+                                onClick: ()=> {
+                                    console.log('Ending Simulation');
+                                    ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
+                                }
+                            }, text:'End Simulation'}),
+                        this.div({
+                            props: {id: 'spinnerDiv'}
+                        })
                     ]
                 }),
 
