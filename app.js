@@ -2,7 +2,14 @@ import {SRComponentBase} from './sirepo-components.js'
 
 class App extends SRComponentBase {
     constructor(props) {
+        // const { useState, setState } = React
         super(props);
+
+        this.state = {
+            simState: {
+                running: false,
+            },
+        }
         this.APP_SCHEMA = {
             header: [
                 'lattice',
@@ -48,20 +55,34 @@ class App extends SRComponentBase {
                 visualization: {
                     useTwiss: false
                 },
-                simState: {
-                    running: false,
-                },
             }
         };
+
+    }
+
+    getSimState = () => {
+        if (this.APP_STATE.model.simState.running) {
+            return 'Running';
+        }
+        return 'No sim running';
     }
 
 
+    changeSimState = () => {
+        console.log('setState', this.setState);
+        this.setState({
+            simState: {
+                running: !this.state.simState.running
+            }
+          })
+    }
 
     startSim =  () => {
         console.log('Changing default SSN');
         console.log('updated model:', this.APP_STATE.model)
         this.render()
     }
+
 
     render() {
         return this.app(
@@ -110,7 +131,8 @@ class App extends SRComponentBase {
                                             onClick: () => {
                                                 console.log('Starting Simualation');
                                                 ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
-                                                this.APP_STATE.model.simState.running = true;
+                                                this.changeSimState()
+                                                // this.APP_STATE.model.simState.running = true;
                                                 console.log('THIS:', this)
                                             }
                                         },
@@ -121,7 +143,8 @@ class App extends SRComponentBase {
                                             onClick: ()=> {
                                                 console.log('Ending Simulation');
                                                 ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
-                                                this.APP_STATE.model.simState.running = false;
+                                                this.changeSimState()
+                                                // APP_STATE.model.simState.running = false;
                                                 console.log('THIS:', this)
                                             }
                                         }, text:'End Simulation'}),
@@ -132,10 +155,15 @@ class App extends SRComponentBase {
                             })
                         ]
                     }
+                ),
 
+                this.div({
+                    children: String(this.state.simState.running)
+                   }
+                )
 
+            );
 
-            ));
     }
 }
 

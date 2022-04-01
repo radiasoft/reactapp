@@ -31,7 +31,7 @@ function editorType(val) {
     }
  }
 
-export class SRComponentBase {
+export class SRComponentBase extends React.Component {
 
     app(...components) {
         console.log('react is ', React)
