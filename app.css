@@ -17,6 +17,14 @@
   color: white;
 }
 
+.hide {
+  display: none;
+}
+
+.show {
+  display: block;
+}
+
 .topnav button:hover {
   background-color: #ddd;
   color: black;

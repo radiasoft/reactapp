@@ -21,13 +21,22 @@ function e({type, props={}, children=[]}) {
     return elem;
 }
 
+function editorType(val) {
+    if (typeof(val) == 'number') {
+        return 'number';
+    } else if (typeof(val) == 'boolean') {
+        return 'checkbox';
+    } else {
+        return 'text';
+    }
+ }
+
 export class SRComponentBase {
 
     app(...components) {
         console.log('react is ', React)
         return this.div({
             children: [
-                this.header(),
                 ...components
             ]
         });
@@ -56,18 +65,16 @@ export class SRComponentBase {
         })
     }
 
-    header() {
+    header(children={}) {
         return this.div({
             props: {className: 'topnav'},
-            children: this.APP_SCHEMA.header.map(
-                (t) => this.button({text: t})
-            )
+            children: children,
         });
     }
 
     panel(modelKey, children={}) {
         return this.div({
-            props: {className: 'col-sm-12', id: 'panel'},
+            props: {className: 'col-sm-12'},
             children: [
                 this.div({
                     props: {className: 'panel panel-info'},
@@ -75,6 +82,7 @@ export class SRComponentBase {
                         this.panelHeader(modelKey),
                         this.panelBody(modelKey),
                         this.div(children),
+                        this.footer(),
                     ]
                 })
             ]
@@ -95,10 +103,11 @@ export class SRComponentBase {
     }
 
     editorValue(modelKey, fieldName) {
+        console.log('val:', this.APP_STATE.model[modelKey][fieldName]);
         return e({
             type: 'input',
             props: {
-                type: 'text',
+                type: editorType(this.APP_STATE.model[modelKey][fieldName]),
                 onChange: (event) => {
                     this.APP_STATE.model[modelKey][fieldName] = event.target.value;
                 },
@@ -160,5 +169,43 @@ export class SRComponentBase {
             }
             ), '   Running Simulation...']
         })
+    }
+
+    footer() {
+        return this.div({
+            props: {
+                className: 'panel-footer'
+            },
+        })
+    }
+
+    input(id){
+        return e({
+            type: 'input',
+            props: {
+                type: 'checkbox',
+                id: id
+            },
+        });
+    }
+
+    label(text, id){
+        return e({
+            type: 'label',
+            props: {
+                for: id,
+            },
+            children: text,
+        });
+    }
+
+    checkBox(text, id){
+        return this.div( {
+            children: [
+                this.label(text, id),
+                this.input(id),
+                ]
+            }
+        )
     }
 }
