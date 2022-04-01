@@ -71,7 +71,7 @@ class App extends SRComponentBase {
     changeSimState = () => {
         console.log('setState', this.setState);
         this.setState({
-            simState: {
+            simState: { // TODO (gurhar1133): need to get setState to work so ui updates?
                 running: !this.state.simState.running
             }
           })
