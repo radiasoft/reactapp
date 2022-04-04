@@ -38,7 +38,7 @@ class App extends SRComponentBase {
                 }
             },
         }
-        this.APP_STATE = {
+        this.APP_STATE = { // TODO (gurhar1133): figure out how to update UI based on state changes
             model: {
                 lattice: {
                     x: 0,
