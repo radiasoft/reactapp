@@ -2,14 +2,8 @@ import {SRComponentBase} from './sirepo-components.js'
 
 class App extends SRComponentBase {
     constructor(props) {
-        // const { useState, setState } = React
-        super(props);
 
-        this.state = {
-            simState: {
-                running: false,
-            },
-        }
+        super(props);
         this.APP_SCHEMA = {
             header: [
                 'lattice',
@@ -60,111 +54,61 @@ class App extends SRComponentBase {
 
     }
 
-    getSimState = () => {
-        if (this.APP_STATE.model.simState.running) {
-            return 'Running';
-        }
-        return 'No sim running';
+    lattice = () => {
+        return this.div({
+            props: {className: '', id: 'lattice'},
+                children: [
+                    this.panel('lattice', {
+                        children: [
+                            this.button({
+                                text:'Save Changes'}),
+                        ]
+                    }),
+                ]
+            })
     }
 
-
-    changeSimState = () => {
-        console.log('setState', this.setState);
-        this.setState({
-            simState: { // TODO (gurhar1133): need to get setState to work so ui updates?
-                running: !this.state.simState.running
+    visualization = () => {
+        return this.div({
+            props: {className: '', id: 'visualization'},
+                children: [
+                    this.panel('visualization', {
+                        children: [
+                            React.createElement(
+                                'button',
+                                {
+                                    onClick: () => {
+                                        console.log('Starting Simualation');
+                                        ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
+                                        console.log('THIS:', this)
+                                    }
+                                },
+                                'Start Simulation'
+                            ),
+                            this.button({
+                                props:{
+                                    onClick: ()=> {
+                                        console.log('Ending Simulation');
+                                        ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
+                                        console.log('THIS:', this)
+                                    }
+                                }, text:'End Simulation'}),
+                            this.div({
+                                props: {id: 'spinnerDiv'}
+                            })
+                        ]
+                    })
+                ]
             }
-          })
+        )
     }
-
-    startSim =  () => {
-        console.log('Changing default SSN');
-        console.log('updated model:', this.APP_STATE.model)
-        this.render()
-    }
-
 
     render() {
         return this.app(
-
-                this.header([
-                        this.APP_SCHEMA.header.map(
-                            (t) => this.button({text: t, props: {
-                                onClick: () => {
-                                    console.log('header elems: ', this.APP_SCHEMA.header);
-                                    this.APP_SCHEMA.header.forEach((e) => {
-                                        if (e == t) {
-                                            // TODO (gurhar1133): use something other than doc.getElementByID??
-                                            document.getElementById(e).classList.replace('hide','show');
-                                            console.log(document.getElementById(e));
-                                        } else {
-                                            document.getElementById(e).classList.replace('show','hide');
-                                            console.log(document.getElementById(e));
-                                        }
-                                    })
-                                }
-                            }
-                        })
-                    )]),
-
-                this.div({
-                    props: {className: 'show', id: 'lattice'},
-                        children: [
-                            this.panel('lattice', {
-                                children: [
-                                    this.button({
-                                        text:'Save Changes'}),
-                                ]
-                            }),
-                        ]
-                    }
-                ),
-
-                this.div({
-                    props: {className: 'hide', id: 'visualization'},
-                        children: [
-                            this.panel('visualization', {
-                                children: [
-                                    React.createElement(
-                                        'button',
-                                        {
-                                            onClick: () => {
-                                                console.log('Starting Simualation');
-                                                ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
-                                                this.changeSimState()
-                                                // this.APP_STATE.model.simState.running = true;
-                                                console.log('THIS:', this)
-                                            }
-                                        },
-                                        'Start Simulation'
-                                    ),
-                                    this.button({
-                                        props:{
-                                            onClick: ()=> {
-                                                console.log('Ending Simulation');
-                                                ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
-                                                this.changeSimState()
-                                                // APP_STATE.model.simState.running = false;
-                                                console.log('THIS:', this)
-                                            }
-                                        }, text:'End Simulation'}),
-                                    this.div({
-                                        props: {id: 'spinnerDiv'}
-                                    })
-                                ]
-                            })
-                        ]
-                    }
-                ),
-
-                this.div({
-                    children: String(this.state.simState.running)
-                   }
-                )
-
+                this.tabSelector(this.APP_SCHEMA.header, 'lattice'),
             );
-
     }
+
 }
 
 const rootElement = new App().render()

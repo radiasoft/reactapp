@@ -208,4 +208,45 @@ export class SRComponentBase extends React.Component {
             }
         )
     }
+
+    tabSelector(tabList, defaultTab) {
+
+        const l = [];
+        tabList.forEach((t) => {
+            if (t == defaultTab) {
+                l.push(
+                    this.div({props: {id: t}, children: this[t]()}) // this[t]() means that the tab elements have to be defined by child app class
+                )
+            } else {
+                l.push(
+                    this.div({props: {id: t}})
+                )
+            }
+        })
+
+        const renderTargetTab = (targetTab) => { // can put logic in the component
+            tabList.forEach((h) => {
+                if (h != targetTab) {
+                    ReactDOM.render('', document.getElementById(h));
+                }
+            })
+            ReactDOM.render(this[targetTab](), document.getElementById(targetTab));
+        }
+
+        return e({
+            type: 'div',
+            children: [
+                this.header([
+                    tabList.map(
+                        (t) => this.button({text: t, props: {
+                            onClick: () => {
+                                renderTargetTab(t);
+                            },
+                        }
+                        })
+                )]),
+                ...l
+            ]
+        })
+    }
 }
