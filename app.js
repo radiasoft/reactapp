@@ -4,10 +4,8 @@ class App extends SRComponentBase {
     constructor(props) {
 
         super(props);
-
-        this.state = {
-            simState: 'no sim'
-        }
+        this.state = {simState: 'no sim'};
+        console.log('THIS.STATE: ', this.state);
 
         this.APP_SCHEMA = {
             header: [
@@ -58,9 +56,17 @@ class App extends SRComponentBase {
         };
     }
 
-    componentWillMount() {
+    componentDidMount() {
         this.updateSimState = this.updateSimState.bind(this);
+
       }
+
+    updateSimState (newState) {
+        console.log('setting new simState!');
+        console.log('this.state', this.state);
+        this.setState({simState: newState});
+        // this.state.simState = newState;
+    }
 
     lattice = () => {
         return this.div({
@@ -76,11 +82,7 @@ class App extends SRComponentBase {
             })
     }
 
-    updateSimState = (newState) => {
-        console.log('setting new simState!');
-        this.setState({simState: newState});
-        // this.state.simState = newState;
-    }
+
 
     visualization = () => {
         return this.div({
@@ -94,6 +96,7 @@ class App extends SRComponentBase {
                                 {
                                     onClick: () => {
                                         ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
+                                        console.log('this.state: ', this.state)
                                         this.updateSimState('running');
                                     }
                                 },

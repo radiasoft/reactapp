@@ -32,6 +32,10 @@ function editorType(val) {
  }
 
 export class SRComponentBase extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {}
+    }
 
     app(...components) {
         console.log('react is ', React)
