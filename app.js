@@ -1,12 +1,13 @@
-import {SRComponentBase} from './sirepo-components.js'
+import {SRComponentBase} from './sirepo-components.js';
 
 class App extends SRComponentBase {
+
     constructor(props) {
 
         super(props);
-        this.state = {simState: 'no sim'};
-        console.log('THIS.STATE: ', this.state);
+        this.state = {simState: 'no sim'}
 
+        this.updateSimState = this.updateSimState.bind(this)
         this.APP_SCHEMA = {
             header: [
                 'lattice',
@@ -56,16 +57,13 @@ class App extends SRComponentBase {
         };
     }
 
-    componentDidMount() {
-        this.updateSimState = this.updateSimState.bind(this);
+    updateSimState = (newSimState) => {
 
-      }
-
-    updateSimState (newState) {
-        console.log('setting new simState!');
-        console.log('this.state', this.state);
-        this.setState({simState: newState});
-        // this.state.simState = newState;
+        console.log('the new state should be: ', newSimState);
+        this.state.simState = newSimState;
+        // setSimState(newSimState);
+        this.setState({simState: newSimState});
+        console.log('this.state:', this.state);
     }
 
     lattice = () => {
@@ -83,7 +81,6 @@ class App extends SRComponentBase {
     }
 
 
-
     visualization = () => {
         return this.div({
             props: {className: '', id: 'visualization'},
@@ -95,9 +92,8 @@ class App extends SRComponentBase {
                                 'button',
                                 {
                                     onClick: () => {
-                                        ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
-                                        console.log('this.state: ', this.state)
                                         this.updateSimState('running');
+                                        ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
                                     }
                                 },
                                 'Start Simulation'
@@ -107,14 +103,17 @@ class App extends SRComponentBase {
                                 props:
                                 {
                                     onClick: ()=> {
-                                        ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
                                         this.updateSimState('cancelled');
+                                        ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
                                     }
                                 }, text:'End Simulation'}),
 
                             this.div({
                                 props: {id: 'spinnerDiv'}
-                            })
+                            }),
+
+                            // this.button({props: {}, text: this.state.simState})
+
                         ]
                     })
                 ]
@@ -123,9 +122,10 @@ class App extends SRComponentBase {
     }
 
     render() {
+        // const simState = this.state.simState;
         return this.app(
                 this.tabSelector(this.APP_SCHEMA.header, 'lattice'),
-                React.createElement('div', null, [this.state.simState])
+                this.div({props: null, children: `${this.state.simState}`}),
             );
     }
 
