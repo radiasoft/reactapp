@@ -1,4 +1,29 @@
 import {SRComponentBase} from './sirepo-components.js';
+const {connect, Provider} = ReactRedux;
+const {createStore, compose} = Redux;
+
+const initialState = {
+    simState: 'no sim',
+}
+
+function reducer(state=initialState, action) {
+    console.log('reducer', state, action);
+    switch(action.type) {
+        case 'START':
+            return {
+                simState: 'Simulation Running'
+            }
+        case 'CANCEL':
+            return {
+                simState: 'Simulation Cancelled'
+            }
+    }
+    return state;
+}
+
+const store = createStore(reducer);
+
+console.log(store);
 
 class App extends SRComponentBase {
 
@@ -58,12 +83,11 @@ class App extends SRComponentBase {
     }
 
     updateSimState = (newSimState) => {
+        // this.state = {simState: newSimState}
+        // console.log('the new state should be: ', newSimState);
+        store.dispatch({ type: newSimState });
+        console.log('STORE STATE', store.getState());
 
-        console.log('the new state should be: ', newSimState);
-        this.state.simState = newSimState;
-        // setSimState(newSimState);
-        this.setState({simState: newSimState});
-        console.log('this.state:', this.state);
     }
 
     lattice = () => {
@@ -88,22 +112,20 @@ class App extends SRComponentBase {
                     this.panel('visualization', {
                         children: [
 
-                            React.createElement(
-                                'button',
+                            this.button({
+                                props:
                                 {
-                                    onClick: () => {
-                                        this.updateSimState('running');
+                                    onClick: ()=> {
+                                        this.updateSimState('START');
                                         ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
                                     }
-                                },
-                                'Start Simulation'
-                            ),
+                                }, text:'Start Simulation'}),
 
                             this.button({
                                 props:
                                 {
                                     onClick: ()=> {
-                                        this.updateSimState('cancelled');
+                                        this.updateSimState('CANCEL');
                                         ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
                                     }
                                 }, text:'End Simulation'}),
@@ -112,8 +134,6 @@ class App extends SRComponentBase {
                                 props: {id: 'spinnerDiv'}
                             }),
 
-                            // this.button({props: {}, text: this.state.simState})
-
                         ]
                     })
                 ]
@@ -121,11 +141,15 @@ class App extends SRComponentBase {
         )
     }
 
+    statusBar = () => {
+        return this.div({props: null, children: `   current app state: ${this.state.simState}`})
+    }
+
     render() {
         // const simState = this.state.simState;
         return this.app(
                 this.tabSelector(this.APP_SCHEMA.header, 'lattice'),
-                this.div({props: null, children: `${this.state.simState}`}),
+                this.statusBar()
             );
     }
 

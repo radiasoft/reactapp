@@ -1,3 +1,6 @@
+const {connect, Provider} = ReactRedux;
+const {createStore, compose} = Redux;
+
 function e({type, props={}, children=[]}) {
     // TODO(e-carlin): I don't think instanceof always works
     // https://web.mit.edu/jwalden/www/isArray.html
