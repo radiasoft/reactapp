@@ -71,7 +71,7 @@ class App extends SRComponentBase {
                 }
             },
         }
-        this.APP_STATE = { // TODO (gurhar1133) refactor to work with redux
+        this.APP_STATE = { // TODO (gurhar1133) refactor to work with redux store
             model: {
                 lattice: {
                     x: 0,
