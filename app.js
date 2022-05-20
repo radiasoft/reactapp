@@ -1,23 +1,19 @@
 import {SRComponentBase} from './sirepo-components.js';
-const {createStore, compose} = Redux;
 
+const {createStore, compose} = Redux;
 const initialState = {
     simState: 'no sim',
     model: {
-        lattice: {
-            x: 0,
-            y: 0,
-            dx: 1,
-            dy: 1,
-        },
+        lattice: {},
         visualization: {
             useTwiss: false
         },
     }
 }
+const appState = createStore(reducer);
+
 
 function reducer(state=initialState, action) {
-    console.log('reducer', state, action);
     switch(action.type) {
         case 'START':
             return {
@@ -33,21 +29,27 @@ function reducer(state=initialState, action) {
     return state;
 }
 
+function udpateStateAndUI(appState, actionType, UIcontent, idOfTarget) {
+    appState.dispatch({type: actionType});
+    renderContent(UIcontent, idOfTarget);
+    return appState.getState();
+}
+
+function updateState(appState, actionType) {
+    appState.dispatch({type: actionType});
+}
+
 function renderContent(content, idOfTarget){
     ReactDOM.render(content, document.getElementById(idOfTarget))
 }
-
-const appState = createStore(reducer);
 
 
 class App extends SRComponentBase {
 
     constructor(props) {
-
         super(props);
         this.state = {simState: 'no sim'}
 
-        this.updateSimState = this.updateSimState.bind(this)
         this.APP_SCHEMA = {
             header: [
                 'lattice',
@@ -82,44 +84,39 @@ class App extends SRComponentBase {
                 }
             },
         }
-        this.APP_STATE = { // TODO (gurhar1133) refactor to work with redux store
+        this.APP_STATE = { // TODO (gurhar1133) refactor to work in a better way with redux store
             ...initialState
         };
     }
 
-    udpateStateAndUI = (actionType, UIcontent, idOfTarget) => {
-        appState.dispatch({type: actionType});
-        renderContent(UIcontent, idOfTarget);
-        this.APP_STATE = appState.getState();
-    }
-
     updateSimState = (newSimState) => {
-        this.udpateStateAndUI(newSimState, this.simButton(newSimState), 'simButton');
-        console.log('STORE STATE', appState.getState());
-
+        const newState = udpateStateAndUI(appState, newSimState, this.simButton(newSimState), 'simButton');
+        this.APP_STATE = { ...newState};
+        console.log('STORE STATE:', appState.getState());
+        console.log('this.APP_STATE:', this.APP_STATE);
     }
 
     simButton = (simState) => {
         if (simState == 'START') {
             return this.button({
-                    props:
-                    {
+                    props: {
                         onClick: ()=> {
                             this.updateSimState('CANCEL');
                             renderContent(appState.getState().simState, 'spinnerDiv');
                         }
-                    }, text:'End Simulation'});
+                    },
+                    text:'End Simulation'});
         }
         else if (simState == 'CANCEL' || simState == 'NO SIM') {
                 return this.button({
-                props:
-                {
-                    onClick: ()=> {
+                props: {
+                     onClick: ()=> {
                         this.updateSimState('START');
                         renderContent(this.spinner(), 'spinnerDiv');
 
                     }
-                }, text:'Start Simulation'});
+                },
+                text:'Start Simulation'});
         }
     }
 
@@ -130,6 +127,12 @@ class App extends SRComponentBase {
                     this.panel('lattice', {
                         children: [
                             this.button({
+                                props: {
+                                    onClick: () => {
+                                        console.log(appState.getState())
+                                        //TODO (gurhar1133): ^ update appState.model.lattice on save changes with 'SAVE CHANGES' action
+                                    }
+                                },
                                 text:'Save Changes'}),
                         ]
                     }),

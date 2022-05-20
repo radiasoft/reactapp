@@ -18,9 +18,6 @@ function e({type, props={}, children=[]}) {
         props,
         children
     );
-    if (type == 'button'){
-        console.log('ELEM: ', elem);
-    }
     return elem;
 }
 
@@ -42,7 +39,6 @@ export class SRComponentBase extends React.Component {
 
 
     app(...components) {
-        console.log('react is ', React)
         return this.div({
             children: [
                 ...components
@@ -111,7 +107,6 @@ export class SRComponentBase extends React.Component {
     }
 
     editorValue(modelKey, fieldName) {
-        console.log('val:', this.APP_STATE.model[modelKey][fieldName]);
         return e({
             type: 'input',
             props: {
