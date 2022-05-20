@@ -39,7 +39,6 @@ function renderContent(content, idOfTarget){
 
 const appState = createStore(reducer);
 
-console.log(appState);
 
 class App extends SRComponentBase {
 
