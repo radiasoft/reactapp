@@ -36,7 +36,7 @@ function udpateStateAndUI(appState, actionType, UIcontent, idOfTarget) {
 }
 
 function updateState(appState, actionType) {
-    appState.dispatch({type: actionType});
+    appState.dispatch({type: actionType}); // TODO (gurhar1133): need to update reducer in order to pass new lattice values through to appState
 }
 
 function renderContent(content, idOfTarget){
