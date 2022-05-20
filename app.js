@@ -21,9 +21,13 @@ function reducer(state=initialState, action) {
     return state;
 }
 
-const store = createStore(reducer);
+function renderContent(content, idOfTarget){
+    ReactDOM.render(content, document.getElementById(idOfTarget))
+}
 
-console.log(store);
+const appState = createStore(reducer);
+
+console.log(appState);
 
 class App extends SRComponentBase {
 
@@ -67,7 +71,7 @@ class App extends SRComponentBase {
                 }
             },
         }
-        this.APP_STATE = { // TODO (gurhar1133): figure out how to update UI based on state changes
+        this.APP_STATE = { // TODO (gurhar1133) refactor to work with redux
             model: {
                 lattice: {
                     x: 0,
@@ -85,8 +89,9 @@ class App extends SRComponentBase {
     updateSimState = (newSimState) => {
         // this.state = {simState: newSimState}
         // console.log('the new state should be: ', newSimState);
-        store.dispatch({ type: newSimState });
-        console.log('STORE STATE', store.getState());
+        appState.dispatch({ type: newSimState });
+        renderContent(appState.getState().simState, 'statusBar');
+        console.log('STORE STATE', appState.getState());
 
     }
 
@@ -111,13 +116,13 @@ class App extends SRComponentBase {
                 children: [
                     this.panel('visualization', {
                         children: [
-
                             this.button({
                                 props:
                                 {
                                     onClick: ()=> {
                                         this.updateSimState('START');
-                                        ReactDOM.render(this.spinner(), document.getElementById('spinnerDiv'));
+                                        renderContent(this.spinner(), 'spinnerDiv');
+
                                     }
                                 }, text:'Start Simulation'}),
 
@@ -126,7 +131,7 @@ class App extends SRComponentBase {
                                 {
                                     onClick: ()=> {
                                         this.updateSimState('CANCEL');
-                                        ReactDOM.render('Simulation Cancelled', document.getElementById('spinnerDiv'));
+                                        renderContent(appState.getState().simState, 'spinnerDiv');
                                     }
                                 }, text:'End Simulation'}),
 
@@ -142,11 +147,13 @@ class App extends SRComponentBase {
     }
 
     statusBar = () => {
-        return this.div({props: null, children: `   current app state: ${this.state.simState}`})
+        return this.div({props: {id:"statusBar"}},
+        // WHAT I WANTED WAS JUST A REFERENCE TO store.getState().simState RIGHT HERE THAT WOULD UPDATE WHEN THE STORE does
+        // TODO (gurhar1133): ^ is this possible?
+        )
     }
 
     render() {
-        // const simState = this.state.simState;
         return this.app(
                 this.tabSelector(this.APP_SCHEMA.header, 'lattice'),
                 this.statusBar()
@@ -156,4 +163,4 @@ class App extends SRComponentBase {
 }
 
 const rootElement = new App().render()
-ReactDOM.render(rootElement, document.getElementById('root'))
+renderContent(rootElement, 'root');
