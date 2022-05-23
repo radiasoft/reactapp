@@ -25,6 +25,11 @@ function reducer(state=initialState, action) {
                 ...appState.getState(),
                 simState: 'Simulation Cancelled'
             }
+        case 'SAVE STATE':
+            return {
+                ...appState.getState(),
+                ...newStateData
+            }
     }
     return state;
 }
@@ -35,8 +40,9 @@ function udpateStateAndUI(appState, actionType, UIcontent, idOfTarget) {
     return appState.getState();
 }
 
-function updateState(appState, actionType) {
-    appState.dispatch({type: actionType}); // TODO (gurhar1133): need to update reducer in order to pass new lattice values through to appState
+function updateState(appState, actionType, newStateData) {
+    appState.dispatch({type: actionType, data: newStateData}); // TODO (gurhar1133): need to update reducer in order to pass new lattice values through to appState
+    return appState.getState();
 }
 
 function renderContent(content, idOfTarget){
@@ -94,6 +100,10 @@ class App extends SRComponentBase {
         this.APP_STATE = { ...newState};
         console.log('STORE STATE:', appState.getState());
         console.log('this.APP_STATE:', this.APP_STATE);
+    }
+
+    saveLatticeVals = (newLatticeVals) => {
+        const newState = updateState(appState, 'SAVE STATE', newStateData)
     }
 
     simButton = (simState) => {
