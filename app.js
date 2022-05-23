@@ -103,7 +103,7 @@ class App extends SRComponentBase {
     }
 
     saveLatticeVals = (newLatticeVals) => {
-        const newState = updateState(appState, 'SAVE STATE', newStateData)
+        const newState = updateState(appState, 'SAVE STATE', )
     }
 
     simButton = (simState) => {
