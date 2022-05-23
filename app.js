@@ -139,8 +139,8 @@ class App extends SRComponentBase {
                             this.button({
                                 props: {
                                     onClick: () => {
-                                        console.log(appState.getState())
-                                        //TODO (gurhar1133): ^ update appState.model.lattice on save changes with 'SAVE CHANGES' action
+                                        console.log(appState.getState());
+                                        alert('changes saved');
                                     }
                                 },
                                 text:'Save Changes'}),
