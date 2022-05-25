@@ -40,11 +40,6 @@ function udpateStateAndUI(appState, actionType, UIcontent, idOfTarget) {
     return appState.getState();
 }
 
-function updateState(appState, actionType, newStateData) {
-    appState.dispatch({type: actionType, data: newStateData}); // TODO (gurhar1133): need to update reducer in order to pass new lattice values through to appState
-    return appState.getState();
-}
-
 function renderContent(content, idOfTarget){
     ReactDOM.render(content, document.getElementById(idOfTarget))
 }
@@ -90,8 +85,8 @@ class App extends SRComponentBase {
                 }
             },
         }
-        this.APP_STATE = { // TODO (gurhar1133) refactor to work in a better way with redux store
-            ...initialState
+        this.APP_STATE = {
+            ...initialState // TODO (gurhar1133): does this and the fact that in reducer handle state=initialState, establish a binding?
         };
     }
 
@@ -100,10 +95,14 @@ class App extends SRComponentBase {
         this.APP_STATE = { ...newState};
         console.log('STORE STATE:', appState.getState());
         console.log('this.APP_STATE:', this.APP_STATE);
+        // console.log('intialState: ', initialState);
     }
 
-    saveLatticeVals = (newLatticeVals) => {
-        const newState = updateState(appState, 'SAVE STATE', )
+    saveLatticeVals = () => {
+        console.log('storeState: ', appState.getState());
+        console.log('this.APP_STATE: ', this.APP_STATE);
+        // console.log('intialState: ', initialState);
+        // alert('changes saved');
     }
 
     simButton = (simState) => {
@@ -139,8 +138,7 @@ class App extends SRComponentBase {
                             this.button({
                                 props: {
                                     onClick: () => {
-                                        console.log(appState.getState());
-                                        alert('changes saved');
+                                        this.saveLatticeVals();
                                     }
                                 },
                                 text:'Save Changes'}),
