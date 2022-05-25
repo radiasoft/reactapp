@@ -1,42 +1,41 @@
-import {SRComponentBase} from './sirepo-components.js'
+const counterSlice = RTK.createSlice({
+  name: 'counter',
+  initialState: {
+    value: 0,
+  },
+  reducers: {
+    increment: (state) => {
+      // Redux Toolkit allows us to write "mutating" logic in reducers. It
+      // doesn't actually mutate the state because it uses the Immer library,
+      // which detects changes to a "draft state" and produces a brand new
+      // immutable state based off those changes
+      state.value += 1
+    },
+  },
+})
 
-class App extends SRComponentBase {
-    constructor() {
-        super();
-        this.APP_SCHEMA = {
-            header: [
-                'source',
-                'visualization'
-            ],
-            model: {
-                modelA: {
-                    foo: ['Foo var', 'String', '']
-                }
-            },
-            view: {
-                modelA: {
-                    title: 'Model A',
-                    basic: [
-                        'foo',
-                    ]
-                }
-            }
-        }
-        this.APP_STATE = {
-            model: {
-                modelA: {
-                    foo: 'a default value for foo'
-                }
-            }
-        };
-    }
+const store = RTK.configureStore({
+  reducer: counterSlice.reducer,
+})
 
-    render() {
-        return this.app(
-            this.panel('modelA'),
-        );
-    }
+function Counter() {
+  const count = ReactRedux.useSelector((state) => state.value)
+  const dispatch = ReactRedux.useDispatch()
+
+    return (
+        React.createElement(
+            'button',
+            {onClick: () => dispatch(counterSlice.actions.increment())},
+            ['Increment', React.createElement('span', {key: 'x'}, count)],
+        )
+  )
 }
 
-const rootElement = new App().render()
-ReactDOM.render(rootElement, document.getElementById('root'))
+const root = ReactDOM.createRoot(document.getElementById('root'))
+root.render(
+    React.createElement(
+        ReactRedux.Provider,
+        {store: store},
+        React.createElement(Counter)
+    )
+)
