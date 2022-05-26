@@ -1,5 +1,5 @@
 const {connect, Provider} = ReactRedux;
-const {createStore, compose} = Redux;
+// const {createStore, compose} = Redux;
 
 function e({type, props={}, children=[]}) {
     // TODO(e-carlin): I don't think instanceof always works
@@ -61,6 +61,14 @@ export class SRComponentBase extends React.Component {
             children: children
         });
     };
+
+    test({props={}, children=[]}) {
+        return e({
+            type: 'div',
+            props: props,
+
+        })
+    }
 
     h1(text) {
         return e({

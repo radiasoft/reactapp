@@ -1,6 +1,6 @@
 import {SRComponentBase} from './sirepo-components.js';
-
-const {createStore, compose} = Redux;
+const {connect, useSelector, Provider, createStore} = ReactRedux;
+// const {createStore, useSelector} = Redux;
 const initialState = {
     simState: 'no sim',
     model: {
@@ -10,21 +10,21 @@ const initialState = {
         },
     }
 }
+// console.log(Redux);
+const headerA = 'headerA';
+const headerB = 'headerB';
+console.log(createStore);
 const appState = createStore(reducer);
 
 
 function reducer(state=initialState, action) {
     switch(action.type) {
         case 'START':
-            return {
-                ...appState.getState(),
-                simState: 'Simulation Running'
-            }
+            console.log('starting')
+            return  Object.assign({}, appState.getState(), {simState: 'Simulation Running'})
         case 'CANCEL':
-            return {
-                ...appState.getState(),
-                simState: 'Simulation Cancelled'
-            }
+            console.log('ending');
+            return Object.assign({}, appState.getState(), {simState: 'Simulation Cancelled'})
         case 'SAVE STATE':
             return {
                 ...appState.getState(),
@@ -105,28 +105,58 @@ class App extends SRComponentBase {
         // alert('changes saved');
     }
 
-    simButton = (simState) => {
-        if (simState == 'START') {
-            return this.button({
-                    props: {
-                        onClick: ()=> {
-                            this.updateSimState('CANCEL');
-                            renderContent(appState.getState().simState, 'spinnerDiv');
-                        }
-                    },
-                    text:'End Simulation'});
-        }
-        else if (simState == 'CANCEL' || simState == 'NO SIM') {
-                return this.button({
-                props: {
-                     onClick: ()=> {
-                        this.updateSimState('START');
-                        renderContent(this.spinner(), 'spinnerDiv');
+    simButton = () => {
+        console.log('useSelector is: ', useSelector);
+        const s = useSelector(state => state.simState);
+        return React.createElement(
+            'button',
+            {
+                onClick: () => {
+                    console.log(appState.getState().simState);
+                    console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
+                    console.log(appState.getState().simState == 'Simulation Running');
+                    appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
+                    // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
+                    // renderContent(appState.getState().simState, 'spinnerDiv');
+                }
+            },
+            s
 
-                    }
-                },
-                text:'Start Simulation'});
-        }
+        );
+        // return this.button({
+        //     props: {
+        //         onClick: ()=> {
+        //             console.log(appState.getState().simState);
+        //             console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
+        //             console.log(appState.getState().simState == 'Simulation Running');
+        //             appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
+        //             // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
+        //             // renderContent(appState.getState().simState, 'spinnerDiv');
+        //         }
+        //     },
+        //     text: appState.getState().simState == 'Simulation Running' ?  'End Simulation' : 'Start simulation'
+        // });
+        // if (simState == 'START') {
+        //     return this.button({
+        //             props: {
+        //                 onClick: ()=> {
+        //                     this.updateSimState('CANCEL');
+        //                     renderContent(appState.getState().simState, 'spinnerDiv');
+        //                 }
+        //             },
+        //             text:'End Simulation'});
+        // }
+        // else if (simState == 'CANCEL' || simState == 'NO SIM') {
+        //         return this.button({
+        //         props: {
+        //              onClick: ()=> {
+        //                 this.updateSimState('START');
+        //                 renderContent(this.spinner(), 'spinnerDiv');
+
+        //             }
+        //         },
+        //         text:'Start Simulation'});
+        // }
     }
 
     lattice = () => {
@@ -159,7 +189,7 @@ class App extends SRComponentBase {
                             }),
                             this.div({
                                 props: {id: 'simButton'},
-                                children: this.simButton('NO SIM')
+                                children: this.simButton()
                             }),
                         ]
                     })
@@ -172,6 +202,23 @@ class App extends SRComponentBase {
         return this.app(
                 this.tabSelector(this.APP_SCHEMA.header, 'lattice')
             );
+            // return React.createElement(
+            //     'button',
+            //     {
+            //         onClick: () => {
+            //             console.log(appState.getState().simState);
+            //             console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
+            //             console.log(appState.getState().simState == 'Simulation Running');
+            //             appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
+            //             // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
+            //             // renderContent(appState.getState().simState, 'spinnerDiv');
+            //         }
+            //     },
+            //     appState.getState().simState == 'Simulation Running' ?  'End Simulation' : 'Start simulation'
+            // );
+        // return React.createElement(
+        //     'h1', null, 'header1',
+        // );
     }
 
 }
