@@ -1,15 +1,11 @@
-const counterSlice = RTK.createSlice({
-    name: 'counter',
+const appStateSlice = RTK.createSlice({
+    name: 'appState',
     initialState: {
       value: 0,
       simState: 'OFF'
     },
     reducers: {
       increment: (state) => {
-        // Redux Toolkit allows us to write "mutating" logic in reducers. It
-        // doesn't actually mutate the state because it uses the Immer library,
-        // which detects changes to a "draft state" and produces a brand new
-        // immutable state based off those changes
         state.value += 1
       },
       simulation: (state) =>{
@@ -23,29 +19,31 @@ const counterSlice = RTK.createSlice({
     },
   })
 
-  const store = RTK.configureStore({
-    reducer: counterSlice.reducer,
+  const appState = RTK.configureStore({
+    reducer: appStateSlice.reducer,
   })
+
+ const e = (type, props, children) => React.createElement(type, props, children)
 
   function Counter() {
     const count = ReactRedux.useSelector((state) => state.value)
     const dispatch = ReactRedux.useDispatch()
 
     return (
-        React.createElement('div', null,
+        e('div', null,
         [
-            React.createElement(
+            e(
                 'button',
                 {
                     key: 'y',
                     onClick: () => {
-                        dispatch(counterSlice.actions.increment());
-                        console.log(store.getState());
+                        dispatch(appStateSlice.actions.increment());
+                        console.log(appState.getState());
                     }
                 },
                 ['Increment'],
             ),
-            React.createElement('span', {key: 'x'}, ' ' + count)
+            e('span', {key: 'x'}, ' ' + count)
             ]
         )
     )
@@ -56,13 +54,13 @@ const counterSlice = RTK.createSlice({
     const dispatch = ReactRedux.useDispatch()
 
     return (
-        React.createElement(
+        e(
             'button',
             {
                 key: '1',
                 onClick: () => {
-                    dispatch(counterSlice.actions.simulation());
-                    console.log(store.getState());
+                    dispatch(appStateSlice.actions.simulation());
+                    console.log(appState.getState());
                 }
             },
             [sim == 'OFF' ? 'Start Simulation' : 'End Simulation']
@@ -71,11 +69,11 @@ const counterSlice = RTK.createSlice({
   }
 
   function Spinner() {
-   return  React.createElement(
+   return  e(
        'div',
         {key: '12', className: 'btn btn-lg'},
         [
-            React.createElement(
+            e(
                 'span',
                 {key: '9', className: 'glyphicon glyphicon-refresh spinning'},
             ),
@@ -87,7 +85,7 @@ const counterSlice = RTK.createSlice({
   function SimStatus() {
       const sim = ReactRedux.useSelector((state) => state.simState);
       return (
-          React.createElement(
+          e(
               'div',
               {key: '2'},
               [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING']
@@ -96,30 +94,27 @@ const counterSlice = RTK.createSlice({
   }
 
   function Panel() {
-   return  React.createElement(
-        'div',
-        {key: 'panel', className: 'panel panel-info'},
-        [
-            React.createElement(
-                'h1',
-                {key: 'panelHeading', className: 'panel-heading'},
-                'Visualization'
-            ),
-            React.createElement(SimStatus, {key: '123'}),
-            React.createElement(SimulationStartButton,  {key: '345'})
-        ]
+    return  e(
+            'div',
+            {key: 'panel', className: 'panel panel-info'},
+            [
+                e(
+                    'h1',
+                    {key: 'panelHeading', className: 'panel-heading'},
+                    'Visualization'
+                ),
+                e(SimStatus, {key: '123'}),
+                e(SimulationStartButton, {key: '345'})
+            ]
         )
   }
 
 
   const root = ReactDOM.createRoot(document.getElementById('root'))
   root.render(
-      React.createElement(
+      e(
           ReactRedux.Provider,
-          {store: store},
-
-          React.createElement(Panel)
-         )
-
-
-      )
+          {store: appState},
+          e(Panel)
+        )
+  )
