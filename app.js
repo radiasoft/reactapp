@@ -31,19 +31,19 @@ const appStateSlice = RTK.createSlice({
 
     return (
         e('div', null,
-        [
-            e(
-                'button',
-                {
-                    key: 'y',
-                    onClick: () => {
-                        dispatch(appStateSlice.actions.increment());
-                        console.log(appState.getState());
-                    }
-                },
-                ['Increment'],
-            ),
-            e('span', {key: 'x'}, ' ' + count)
+            [
+                e(
+                    'button',
+                    {
+                        key: 'y',
+                        onClick: () => {
+                            dispatch(appStateSlice.actions.increment());
+                            console.log(appState.getState());
+                        }
+                    },
+                    ['Increment'],
+                ),
+                e('span', {key: 'x'}, ' ' + count)
             ]
         )
     )
@@ -85,28 +85,24 @@ const appStateSlice = RTK.createSlice({
   function SimStatus() {
       const sim = ReactRedux.useSelector((state) => state.simState);
       return (
-          e(
-              'div',
-              {key: '2'},
-              [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING']
-          )
+          e('div', {key: '2'}, [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING'])
       )
   }
 
   function Panel() {
     return  e(
-            'div',
-            {key: 'panel', className: 'panel panel-info'},
-            [
-                e(
-                    'h1',
-                    {key: 'panelHeading', className: 'panel-heading'},
-                    'Visualization'
-                ),
-                e(SimStatus, {key: '123'}),
-                e(SimulationStartButton, {key: '345'})
-            ]
-        )
+                'div',
+                {key: 'panel', className: 'panel panel-info'},
+                [
+                    e(
+                        'h1',
+                        {key: 'panelHeading', className: 'panel-heading'},
+                        'Visualization'
+                    ),
+                    e(SimStatus, {key: '123'}),
+                    e(SimulationStartButton, {key: '345'})
+                ]
+    )
   }
 
 
