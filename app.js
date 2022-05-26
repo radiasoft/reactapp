@@ -2,7 +2,10 @@ const appStateSlice = RTK.createSlice({
     name: 'appState',
     initialState: {
       value: 0,
-      simState: 'OFF'
+      simState: 'OFF',
+      visualization: {
+          x: 0
+      }
     },
     reducers: {
       increment: (state) => {
@@ -16,14 +19,136 @@ const appStateSlice = RTK.createSlice({
             state.simState = 'OFF';
         }
       },
+      updateValue: (state, modelKey, fieldName, newVal) => {
+          state[modelKey][fieldName] = newVal;
+      }
     },
   })
-
-  const appState = RTK.configureStore({
+const appState = RTK.configureStore({
     reducer: appStateSlice.reducer,
   })
+const APP_SCHEMA = {
+    header: [
+        'lattice',
+        'visualization',
+    ],
+    model: {
+        lattice: {
+            x: ['x: ', 'Number', ''],
+            y: ['y: ', 'Number', ''],
+            dx: ['dx: ', 'Number', ''],
+            dy: ['dy: ', 'Number', ''],
+        },
+        visualization: {
+            useTwiss: ['Use twiss: ', 'Boolean', false]
+        },
+    },
+    view: {
+        lattice: {
+            title: 'Lattice',
+            basic: [
+                'x',
+                'y',
+                'dx',
+                'dy',
+            ]
+        },
+        visualization: {
+            title: 'Visualization',
+            basic: [
+                'useTwiss'
+            ]
+        }
+    },
+}
 
- const e = (type, props, children) => React.createElement(type, props, children)
+const e = (type, props, children) => React.createElement(type, props, children)
+
+
+// function panel(modelKey) {
+//     return this.div({
+//         props: {className: 'col-sm-12'},
+//         children: [
+//             this.div({
+//                 props: {className: 'panel panel-info'},
+//                 children: [
+//                     this.panelHeader(modelKey),
+//                     this.panelBody(modelKey)
+//                 ]
+//             })
+//         ]
+//     })
+// }
+
+function editorLabel(label) {
+    return e(
+        'label',
+        null,
+        e('span', null, label)
+    );
+}
+
+function editorValue(modelKey, fieldName) {
+    const Component = () => {
+        const value = ReactRedux.useSelector((state) => state);
+        const dispatch = ReactRedux.useDispatch();
+
+        return [
+            'input',
+            {
+                type: 'text',
+                onChange: (event) => {
+                    dispatch(appStateSlice.actions.updateValue(modelKey, fieldName, event.target.value));
+                    console.log(appState.getState());
+                },
+                value: value
+            },
+        ]
+
+
+
+
+    }
+    return Component;
+}
+
+
+
+// editorField(modelKey, fieldName) {
+//     const m = this.APP_SCHEMA.model[modelKey][fieldName];
+//     return this.div({
+//         children: [
+//             this.editorLabel(m[0]),
+//             this.editorValue(modelKey, fieldName)
+//         ]
+//     })
+// }
+
+// // TODO(e-carlin): sort
+// editorPane(modelKey) {
+//     return this.div({
+//         children: this.APP_SCHEMA.view[modelKey].basic.map(
+//             (f) => this.editorField(modelKey, f)
+//         )
+//     });
+// }
+
+// panelBody(modelKey) {
+//     return this.div({
+//         props: {className: 'panel-body'},
+//         children: [
+//             this.editorPane(modelKey)
+//         ]
+//     })
+// }
+
+// panelHeader(modelKey) {
+//     return this.div({
+//         props: {className: 'panel-heading'},
+//         children: this.h1(this.APP_SCHEMA.view[modelKey].title)
+
+//     })
+// }
 
   function Counter() {
     const count = ReactRedux.useSelector((state) => state.value)
@@ -111,6 +236,9 @@ const appStateSlice = RTK.createSlice({
       e(
           ReactRedux.Provider,
           {store: appState},
-          e(Panel)
+          e(Panel),
+        //   e(editorValue('visualization', 'x')),
+        //   editorLabel('hello world')
+
         )
   )
