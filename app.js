@@ -1,227 +1,125 @@
-import {SRComponentBase} from './sirepo-components.js';
-const {connect, useSelector, Provider, createStore} = ReactRedux;
-// const {createStore, useSelector} = Redux;
-const initialState = {
-    simState: 'no sim',
-    model: {
-        lattice: {},
-        visualization: {
-            useTwiss: false
-        },
-    }
-}
-// console.log(Redux);
-const headerA = 'headerA';
-const headerB = 'headerB';
-console.log(createStore);
-const appState = createStore(reducer);
-
-
-function reducer(state=initialState, action) {
-    switch(action.type) {
-        case 'START':
-            console.log('starting')
-            return  Object.assign({}, appState.getState(), {simState: 'Simulation Running'})
-        case 'CANCEL':
-            console.log('ending');
-            return Object.assign({}, appState.getState(), {simState: 'Simulation Cancelled'})
-        case 'SAVE STATE':
-            return {
-                ...appState.getState(),
-                ...newStateData
-            }
-    }
-    return state;
-}
-
-function udpateStateAndUI(appState, actionType, UIcontent, idOfTarget) {
-    appState.dispatch({type: actionType});
-    renderContent(UIcontent, idOfTarget);
-    return appState.getState();
-}
-
-function renderContent(content, idOfTarget){
-    ReactDOM.render(content, document.getElementById(idOfTarget))
-}
-
-
-class App extends SRComponentBase {
-
-    constructor(props) {
-        super(props);
-        this.state = {simState: 'no sim'}
-
-        this.APP_SCHEMA = {
-            header: [
-                'lattice',
-                'visualization',
-            ],
-            model: {
-                lattice: {
-                    x: ['x: ', 'Number', ''],
-                    y: ['y: ', 'Number', ''],
-                    dx: ['dx: ', 'Number', ''],
-                    dy: ['dy: ', 'Number', ''],
-                },
-                visualization: {
-                    useTwiss: ['Use twiss: ', 'Boolean', false]
-                },
-            },
-            view: {
-                lattice: {
-                    title: 'Lattice',
-                    basic: [
-                        'x',
-                        'y',
-                        'dx',
-                        'dy',
-                    ]
-                },
-                visualization: {
-                    title: 'Visualization',
-                    basic: [
-                        'useTwiss'
-                    ]
-                }
-            },
+const counterSlice = RTK.createSlice({
+    name: 'counter',
+    initialState: {
+      value: 0,
+      simState: 'OFF'
+    },
+    reducers: {
+      increment: (state) => {
+        // Redux Toolkit allows us to write "mutating" logic in reducers. It
+        // doesn't actually mutate the state because it uses the Immer library,
+        // which detects changes to a "draft state" and produces a brand new
+        // immutable state based off those changes
+        state.value += 1
+      },
+      simulation: (state) =>{
+        if (state.simState == 'OFF') {
+            state.simState = 'ON';
         }
-        this.APP_STATE = {
-            ...initialState // TODO (gurhar1133): does this and the fact that in reducer handle state=initialState, establish a binding?
-        };
-    }
+        else {
+            state.simState = 'OFF';
+        }
+      },
+    },
+  })
 
-    updateSimState = (newSimState) => {
-        const newState = udpateStateAndUI(appState, newSimState, this.simButton(newSimState), 'simButton');
-        this.APP_STATE = { ...newState};
-        console.log('STORE STATE:', appState.getState());
-        console.log('this.APP_STATE:', this.APP_STATE);
-        // console.log('intialState: ', initialState);
-    }
+  const store = RTK.configureStore({
+    reducer: counterSlice.reducer,
+  })
 
-    saveLatticeVals = () => {
-        console.log('storeState: ', appState.getState());
-        console.log('this.APP_STATE: ', this.APP_STATE);
-        // console.log('intialState: ', initialState);
-        // alert('changes saved');
-    }
+  function Counter() {
+    const count = ReactRedux.useSelector((state) => state.value)
+    const dispatch = ReactRedux.useDispatch()
 
-    simButton = () => {
-        console.log('useSelector is: ', useSelector);
-        const s = useSelector(state => state.simState);
-        return React.createElement(
+    return (
+        React.createElement('div', null,
+        [
+            React.createElement(
+                'button',
+                {
+                    key: 'y',
+                    onClick: () => {
+                        dispatch(counterSlice.actions.increment());
+                        console.log(store.getState());
+                    }
+                },
+                ['Increment'],
+            ),
+            React.createElement('span', {key: 'x'}, ' ' + count)
+            ]
+        )
+    )
+  }
+
+  function SimulationStartButton() {
+    const sim = ReactRedux.useSelector((state) => state.simState)
+    const dispatch = ReactRedux.useDispatch()
+
+    return (
+        React.createElement(
             'button',
             {
+                key: '1',
                 onClick: () => {
-                    console.log(appState.getState().simState);
-                    console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
-                    console.log(appState.getState().simState == 'Simulation Running');
-                    appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
-                    // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
-                    // renderContent(appState.getState().simState, 'spinnerDiv');
+                    dispatch(counterSlice.actions.simulation());
+                    console.log(store.getState());
                 }
             },
-            s
-
-        );
-        // return this.button({
-        //     props: {
-        //         onClick: ()=> {
-        //             console.log(appState.getState().simState);
-        //             console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
-        //             console.log(appState.getState().simState == 'Simulation Running');
-        //             appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
-        //             // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
-        //             // renderContent(appState.getState().simState, 'spinnerDiv');
-        //         }
-        //     },
-        //     text: appState.getState().simState == 'Simulation Running' ?  'End Simulation' : 'Start simulation'
-        // });
-        // if (simState == 'START') {
-        //     return this.button({
-        //             props: {
-        //                 onClick: ()=> {
-        //                     this.updateSimState('CANCEL');
-        //                     renderContent(appState.getState().simState, 'spinnerDiv');
-        //                 }
-        //             },
-        //             text:'End Simulation'});
-        // }
-        // else if (simState == 'CANCEL' || simState == 'NO SIM') {
-        //         return this.button({
-        //         props: {
-        //              onClick: ()=> {
-        //                 this.updateSimState('START');
-        //                 renderContent(this.spinner(), 'spinnerDiv');
-
-        //             }
-        //         },
-        //         text:'Start Simulation'});
-        // }
-    }
-
-    lattice = () => {
-        return this.div({
-            props: {className: '', id: 'lattice'},
-                children: [
-                    this.panel('lattice', {
-                        children: [
-                            this.button({
-                                props: {
-                                    onClick: () => {
-                                        this.saveLatticeVals();
-                                    }
-                                },
-                                text:'Save Changes'}),
-                        ]
-                    }),
-                ]
-            })
-    }
-
-    visualization = () => {
-        return this.div({
-            props: {className: '', id: 'visualization'},
-                children: [
-                    this.panel('visualization', {
-                        children: [
-                            this.div({
-                                props: {id: 'spinnerDiv'}
-                            }),
-                            this.div({
-                                props: {id: 'simButton'},
-                                children: this.simButton()
-                            }),
-                        ]
-                    })
-                ]
-            }
+            [sim == 'OFF' ? 'Start Simulation' : 'End Simulation']
         )
-    }
+    )
+  }
 
-    render() {
-        return this.app(
-                this.tabSelector(this.APP_SCHEMA.header, 'lattice')
-            );
-            // return React.createElement(
-            //     'button',
-            //     {
-            //         onClick: () => {
-            //             console.log(appState.getState().simState);
-            //             console.log('action.type:', appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START');
-            //             console.log(appState.getState().simState == 'Simulation Running');
-            //             appState.dispatch({type: appState.getState().simState == 'Simulation Running' ?  'CANCEL' : 'START'});
-            //             // this.updateSimState(simState == 'START' ?  'CANCEL' : 'START');
-            //             // renderContent(appState.getState().simState, 'spinnerDiv');
-            //         }
-            //     },
-            //     appState.getState().simState == 'Simulation Running' ?  'End Simulation' : 'Start simulation'
-            // );
-        // return React.createElement(
-        //     'h1', null, 'header1',
-        // );
-    }
+  function Spinner() {
+   return  React.createElement(
+       'div',
+        {key: '12', className: 'btn btn-lg'},
+        [
+            React.createElement(
+                'span',
+                {key: '9', className: 'glyphicon glyphicon-refresh spinning'},
+            ),
+            ['   Running Simulation...']
+        ]
+    )
+  }
 
-}
+  function SimStatus() {
+      const sim = ReactRedux.useSelector((state) => state.simState);
+      return (
+          React.createElement(
+              'div',
+              {key: '2'},
+              [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING']
+          )
+      )
+  }
 
-const rootElement = new App().render()
-renderContent(rootElement, 'root');
+  function Panel() {
+   return  React.createElement(
+        'div',
+        {key: 'panel', className: 'panel panel-info'},
+        [
+            React.createElement(
+                'h1',
+                {key: 'panelHeading', className: 'panel-heading'},
+                'Visualization'
+            ),
+            React.createElement(SimStatus, {key: '123'}),
+            React.createElement(SimulationStartButton,  {key: '345'})
+        ]
+        )
+  }
+
+
+  const root = ReactDOM.createRoot(document.getElementById('root'))
+  root.render(
+      React.createElement(
+          ReactRedux.Provider,
+          {store: store},
+
+          React.createElement(Panel)
+         )
+
+
+      )
