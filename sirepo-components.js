@@ -1,83 +1,139 @@
-export function Counter() {
-    const count = ReactRedux.useSelector((state) => state.value)
-    const dispatch = ReactRedux.useDispatch()
+function e({type, props={}, children=[]}) {
+    // TODO(e-carlin): I don't think instanceof always works
+    // https://web.mit.edu/jwalden/www/isArray.html
+    if(children instanceof Array) {
+        return React.createElement(
+            type,
+            props,
+            ...children
+        );
+    }
+    return React.createElement(
+        type,
+        props,
+        children
+    );
+}
 
-    return (
-        React.createElement('div', null,
-        [
-            React.createElement(
-                'button',
-                {
-                    key: 'y',
-                    onClick: () => {
-                        dispatch(counterSlice.actions.increment());
-                        console.log(store.getState());
-                    }
-                },
-                ['Increment'],
-            ),
-            React.createElement('span', {key: 'x'}, ' ' + count)
+export class SRComponentBase {
+
+    app(...components) {
+        console.log('react is ', React)
+        return this.div({
+            children: [
+                this.header(),
+                ...components
             ]
-        )
-    )
-  }
+        });
+    }
 
-  export function SimulationStartButton() {
-    const sim = ReactRedux.useSelector((state) => state.simState)
-    const dispatch = ReactRedux.useDispatch()
+    button({props={}, text}) {
+        return e({
+            type: 'button',
+            props: props,
+            children: text
+        });
+    };
 
-    return (
-        React.createElement(
-            'button',
-            {
-                key: '1',
-                onClick: () => {
-                    dispatch(counterSlice.actions.simulation());
-                    console.log(store.getState());
-                }
+    div({props={}, children=[]}) {
+        return e({
+            type: 'div',
+            props: props,
+            children: children
+        });
+    };
+
+    h1(text) {
+        return e({
+            type: 'h1',
+            children: text
+        })
+    }
+
+    header() {
+        return this.div({
+            props: {className: 'topnav'},
+            children: this.APP_SCHEMA.header.map(
+                (t) => this.button({text: t})
+            )
+        });
+    }
+
+    panel(modelKey) {
+        return this.div({
+            props: {className: 'col-sm-12'},
+            children: [
+                this.div({
+                    props: {className: 'panel panel-info'},
+                    children: [
+                        this.panelHeader(modelKey),
+                        this.panelBody(modelKey)
+                    ]
+                })
+            ]
+        })
+    }
+
+    // TODO(e-carlin): sort
+    editorLabel(label) {
+        return e({
+            type: 'label',
+            children: [
+                e({
+                    type: 'span',
+                    children: label
+                })
+            ]
+        });
+    }
+
+    editorValue(modelKey, fieldName) {
+        return e({
+            type: 'input',
+            props: {
+                type: 'text',
+                onChange: (event) => {
+                    this.APP_STATE.model[modelKey][fieldName] = event.target.value;
+                },
+                value: this.APP_STATE.model[modelKey][fieldName]
             },
-            [sim == 'OFF' ? 'Start Simulation' : 'End Simulation']
-        )
-    )
-  }
+        });
+    }
 
-  export function Spinner() {
-   return  React.createElement(
-       'div',
-        {key: '12', className: 'btn btn-lg'},
-        [
-            React.createElement(
-                'span',
-                {key: '9', className: 'glyphicon glyphicon-refresh spinning'},
-            ),
-            ['   Running Simulation...']
-        ]
-    )
-  }
+    // TODO(e-carlin): sort
+    editorField(modelKey, fieldName) {
+        const m = this.APP_SCHEMA.model[modelKey][fieldName];
+        return this.div({
+            children: [
+                this.editorLabel(m[0]),
+                this.editorValue(modelKey, fieldName)
+            ]
+        })
+    }
 
-  export function SimStatus() {
-      const sim = ReactRedux.useSelector((state) => state.simState);
-      return (
-          React.createElement(
-              'div',
-              {key: '2'},
-              [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING']
-          )
-      )
-  }
+    // TODO(e-carlin): sort
+    editorPane(modelKey) {
+        return this.div({
+            children: this.APP_SCHEMA.view[modelKey].basic.map(
+                (f) => this.editorField(modelKey, f)
+            )
+        });
+    }
 
-  export function Panel() {
-   return  React.createElement(
-        'div',
-        {key: 'panel', className: 'panel panel-info'},
-        [
-            React.createElement(
-                'h1',
-                {key: 'panelHeading', className: 'panel-heading'},
-                'Visualization'
-            ),
-            React.createElement(SimStatus, {key: '123'}),
-            React.createElement(SimulationStartButton,  {key: '345'})
-        ]
-        )
-  }
+    panelBody(modelKey) {
+        return this.div({
+            props: {className: 'panel-body'},
+            children: [
+                this.editorPane(modelKey)
+            ]
+        })
+    }
+
+    panelHeader(modelKey) {
+        return this.div({
+            props: {className: 'panel-heading'},
+            children: this.h1(this.APP_SCHEMA.view[modelKey].title)
+
+        })
+    }
+}
