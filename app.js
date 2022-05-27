@@ -1,32 +1,3 @@
-const appStateSlice = RTK.createSlice({
-    name: 'appState',
-    initialState: {
-      value: 0,
-      simState: 'OFF',
-      visualization: {
-          x: 0
-      }
-    },
-    reducers: {
-      increment: (state) => {
-        state.value += 1
-      },
-      simulation: (state) =>{
-        if (state.simState == 'OFF') {
-            state.simState = 'ON';
-        }
-        else {
-            state.simState = 'OFF';
-        }
-      },
-      updateValue: (state, modelKey, fieldName, newVal) => {
-          state[modelKey][fieldName] = newVal;
-      }
-    },
-  })
-const appState = RTK.configureStore({
-    reducer: appStateSlice.reducer,
-  })
 const APP_SCHEMA = {
     header: [
         'lattice',
@@ -34,10 +5,11 @@ const APP_SCHEMA = {
     ],
     model: {
         lattice: {
-            x: ['x: ', 'Number', ''],
-            y: ['y: ', 'Number', ''],
-            dx: ['dx: ', 'Number', ''],
-            dy: ['dy: ', 'Number', ''],
+            x: ['x: ', 'Number', 0],
+            y: ['y: ', 'Number', 0],
+            dx: ['dx: ', 'Number', 0],
+            dy: ['dy: ', 'Number', 0],
+            cycles: ['cycles', 'Number', 2],
         },
         visualization: {
             useTwiss: ['Use twiss: ', 'Boolean', false]
@@ -61,6 +33,37 @@ const APP_SCHEMA = {
         }
     },
 }
+
+const appStateSlice = RTK.createSlice({
+    name: 'appState',
+    initialState: {
+      value: 0,
+      simState: 'OFF',
+      model: APP_SCHEMA.model
+
+    },
+    reducers: {
+      increment: (state) => {
+        state.value += 1
+      },
+      simulation: (state) =>{
+        if (state.simState == 'OFF') {
+            state.simState = 'ON';
+        }
+        else {
+            state.simState = 'OFF';
+        }
+      },
+      updateValue: (state, action) => {
+          console.log(action);
+          state.model[action.payload.modelKey][action.payload.fieldName] = action.payload.newVal;
+      }
+    },
+  })
+const appState = RTK.configureStore({
+    reducer: appStateSlice.reducer,
+  })
+
 
 const e = (type, props, children) => React.createElement(type, props, children)
 
@@ -88,41 +91,47 @@ function editorLabel(label) {
     );
 }
 
-function editorValue(modelKey, fieldName) {
-    const Component = () => {
-        const value = ReactRedux.useSelector((state) => state);
-        const dispatch = ReactRedux.useDispatch();
+function EditorValue(props) {
+    return e(
+        function() {
 
-        return [
-            'input',
-            {
-                type: 'text',
-                onChange: (event) => {
-                    dispatch(appStateSlice.actions.updateValue(modelKey, fieldName, event.target.value));
-                    console.log(appState.getState());
+            console.log('333',appState.getState().model[props.modelKey][props.fieldName]);
+            const value = ReactRedux.useSelector((state) => state.model[props.modelKey][props.fieldName]);
+            const dispatch = ReactRedux.useDispatch();
+            console.log('2222 appState: ', appState.getState());
+            return React.createElement(
+                'input',
+                {
+                    type: 'text',
+                    onChange: (event) => {
+                        dispatch(appStateSlice.actions.updateValue({newVal: event.target.value, modelKey: props.modelKey, fieldName: props.fieldName}));
+                        console.log(appState.getState());
+                    },
+                    value: value
                 },
-                value: value
-            },
-        ]
+            );
+        }
+    )
 
 
 
-
-    }
-    return Component;
 }
 
 
 
-// editorField(modelKey, fieldName) {
-//     const m = this.APP_SCHEMA.model[modelKey][fieldName];
-//     return this.div({
-//         children: [
-//             this.editorLabel(m[0]),
-//             this.editorValue(modelKey, fieldName)
-//         ]
-//     })
-// }
+function editorField(props) {
+    console.log('props: ', props);
+    console.log('APP_SCHEMA:', APP_SCHEMA.model[props.modelKey]);
+    const m = APP_SCHEMA.model[props.modelKey][props.fieldName];
+
+    console.log('m', m);
+    return React.createElement(
+        'div',
+        null,
+        [editorLabel(props.fieldName),
+        EditorValue(props)]
+    )
+}
 
 // // TODO(e-carlin): sort
 // editorPane(modelKey) {
@@ -214,21 +223,25 @@ function editorValue(modelKey, fieldName) {
       )
   }
 
-  function Panel() {
-    return  e(
-                'div',
-                {key: 'panel', className: 'panel panel-info'},
-                [
-                    e(
-                        'h1',
-                        {key: 'panelHeading', className: 'panel-heading'},
-                        'Visualization'
-                    ),
-                    e(SimStatus, {key: '123'}),
-                    e(SimulationStartButton, {key: '345'})
-                ]
-    )
+  function createPanel(children) {
+    return function Panel() {
+        return  e(
+                    'div',
+                    {key: 'panel', className: 'panel panel-info'},
+                    [
+                        e(
+                            'h1',
+                            {key: 'panelHeading', className: 'panel-heading'},
+                            'Visualization'
+                        ),
+                        e(SimStatus, {key: '123'}),
+                        e('div', {className: 'panel-content'}, children),
+                        e(SimulationStartButton, {key: '345'}),
+                    ]
+        )
+      }
   }
+
 
 
   const root = ReactDOM.createRoot(document.getElementById('root'))
@@ -236,8 +249,21 @@ function editorValue(modelKey, fieldName) {
       e(
           ReactRedux.Provider,
           {store: appState},
-          e(Panel),
-        //   e(editorValue('visualization', 'x')),
+          [
+            // ,
+            e(
+                createPanel(
+                    [
+                        editorField({modelKey: 'lattice', fieldName: 'x'}),
+                        editorField({modelKey: 'lattice', fieldName: 'y'}),
+                        editorField({modelKey: 'lattice', fieldName: 'dx'}),
+                        editorField({modelKey: 'lattice', fieldName: 'dy'}),
+                        editorField({modelKey: 'lattice', fieldName: 'cycles'})
+                    ]
+                )
+            ),
+          ]
+
         //   editorLabel('hello world')
 
         )

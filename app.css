@@ -12,6 +12,11 @@
   font-size: 17px;
 }
 
+.panel-content {
+  margin: 1em;
+  padding: 1em;
+}
+
 .topnav button.active {
   background-color: #04AA6D;
   color: white;
