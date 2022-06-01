@@ -5,16 +5,11 @@
 
 .topnav button {
   float: left;
-  color: ##b0b0b0;
+  color: #b0b0b0;
   text-align: center;
   padding: 14px 16px;
   text-decoration: none;
   font-size: 17px;
-}
-
-.panel-content {
-  margin: 1em;
-  padding: 1em;
 }
 
 .topnav button.active {
@@ -24,6 +19,45 @@
 
 .hide {
   display: none;
+}
+
+.my-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+}
+
+.panel-heading {
+  margin-top: 0em;
+}
+
+.pencil {
+  float: right;
+  width: 5px ;
+  height: 25px ;
+  background: dimgray ;
+  transform: rotate(30deg);
+  margin-right: .5em;
+  margin-top: .2em;
+  cursor: pointer;
+}
+.pencil::before {
+  content: "" ;
+  position: absolute ;
+  width: 5px ;
+  height: 5px ;
+  background: dimgray ;
+  top: -6.5px ;
+}
+.pencil::after {
+  content: "" ;
+  position: absolute ;
+  width: 4px ;
+  height: 4px ;
+  background: dimgray ;
+  left: .5px ;
+  bottom: -2px ;
+  transform: rotate(45deg);
 }
 
 .show {
