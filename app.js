@@ -3,7 +3,7 @@ const appStateSlice = RTK.createSlice({
     initialState: {
       value: 0,
       simState: 'OFF',
-      result: '-',
+      result: false,
       model: {
         lattice: {
             x: 0,
@@ -21,7 +21,10 @@ const appStateSlice = RTK.createSlice({
       increment: (state) => {
         state.value += 1
       },
-      simulation: (state) =>{
+      simulation: (state, action) =>{
+        if (action.payload) {
+            state.result = action.payload.result;
+        }
         if (state.simState == 'OFF') {
             state.simState = 'ON';
         }
@@ -62,9 +65,8 @@ const e = (type, props, children) => React.createElement(type, props, children)
 function runSimulation(state) {
     setTimeout(() => {
         const l = state.model.lattice;
-        const r = l.x + l.y + l.dx + l.dy;
-        console.log('sim result: ', r);
-        appState.dispatch(appStateSlice.actions.simulation());
+        const r = Number(l.x) + Number(l.y) + Number(l.dx) + Number(l.dy);
+        appState.dispatch(appStateSlice.actions.simulation({result: r}));
     }, Number(state.model.lattice.cycles) * 1000);
 }
 
@@ -77,7 +79,7 @@ function editorLabel(label) {
 }
 
 function EditorValue(props) {
-    return e(
+    return e( // ELEMENT(REACT_FUNCTIONAL_COMPONENT) is what works, so if you want to pass props to functional component you have to wrap like this
         function() {
             const value = ReactRedux.useSelector((state) => state.model[props.modelKey][props.fieldName]);
             const dispatch = ReactRedux.useDispatch();
@@ -99,7 +101,6 @@ function EditorValue(props) {
 
 
 function editorField(props) {
-    console.log('props: ', props);
 
     return React.createElement(
         'div',
@@ -109,7 +110,7 @@ function editorField(props) {
     )
 }
 
-// // TODO(e-carlin): sort
+
 // editorPane(modelKey) {
 //     return this.div({
 //         children: this.APP_SCHEMA.view[modelKey].basic.map(
@@ -136,6 +137,7 @@ function editorField(props) {
 // }
 
   function Counter() {
+
     const count = ReactRedux.useSelector((state) => state.value)
     const dispatch = ReactRedux.useDispatch()
 
@@ -160,6 +162,7 @@ function editorField(props) {
   }
 
   function SimulationStartButton() {
+
     const sim = ReactRedux.useSelector((state) => state.simState)
     const dispatch = ReactRedux.useDispatch()
 
@@ -217,6 +220,15 @@ function editorField(props) {
       }
   }
 
+  function SimResult() {
+    const res = ReactRedux.useSelector((state) => state.result)
+        return e(
+            'div',
+            {key: 'result'},
+            res || res === 0 ? 'SIM RESULT: ' + res : ''
+        )
+  }
+
 
 
   const root = ReactDOM.createRoot(document.getElementById('root'))
@@ -226,7 +238,7 @@ function editorField(props) {
           {store: appState},
           [
             e(
-                createPanel(
+                createPanel( // Another example of wrapping funcional components to pass props
                     [
                         e(SimStatus, {key: '123'}),
                         editorField({modelKey: 'lattice', fieldName: 'x'}),
@@ -235,7 +247,7 @@ function editorField(props) {
                         editorField({modelKey: 'lattice', fieldName: 'dy'}),
                         editorField({modelKey: 'lattice', fieldName: 'cycles'}),
                         e(SimulationStartButton, {key: '345'}),
-                        e('div', null, 'Sim Result:')
+                        e(SimResult)
                     ]
                 )
             ),
