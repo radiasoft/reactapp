@@ -79,7 +79,7 @@ function editorLabel(label) {
 }
 
 function EditorValue(props) {
-    return e( // ELEMENT(REACT_FUNCTIONAL_COMPONENT) is what works, so if you want to pass props to functional component you have to wrap like this
+    return e( // ELEMENT(REACT_FUNCTIONAL_COMPONENT_FUNCTION) is what works, so if you want to pass props to functional component you have to wrap like this
         function() {
             const value = ReactRedux.useSelector((state) => state.model[props.modelKey][props.fieldName]);
             const dispatch = ReactRedux.useDispatch();
