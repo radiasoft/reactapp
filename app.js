@@ -1,46 +1,21 @@
-const APP_SCHEMA = {
-    header: [
-        'lattice',
-        'visualization',
-    ],
-    model: {
-        lattice: {
-            x: ['x: ', 'Number', 0],
-            y: ['y: ', 'Number', 0],
-            dx: ['dx: ', 'Number', 0],
-            dy: ['dy: ', 'Number', 0],
-            cycles: ['cycles', 'Number', 2],
-        },
-        visualization: {
-            useTwiss: ['Use twiss: ', 'Boolean', false]
-        },
-    },
-    view: {
-        lattice: {
-            title: 'Lattice',
-            basic: [
-                'x',
-                'y',
-                'dx',
-                'dy',
-            ]
-        },
-        visualization: {
-            title: 'Visualization',
-            basic: [
-                'useTwiss'
-            ]
-        }
-    },
-}
-
 const appStateSlice = RTK.createSlice({
     name: 'appState',
     initialState: {
       value: 0,
       simState: 'OFF',
-      model: APP_SCHEMA.model
-
+      result: '-',
+      model: {
+        lattice: {
+            x: 0,
+            y: 0,
+            dx: 0,
+            dy: 0,
+            cycles: 4,
+        },
+        visualization: {
+            useTwiss: false
+        },
+      }
     },
     reducers: {
       increment: (state) => {
@@ -60,6 +35,7 @@ const appStateSlice = RTK.createSlice({
       }
     },
   })
+
 const appState = RTK.configureStore({
     reducer: appStateSlice.reducer,
   })
@@ -83,6 +59,15 @@ const e = (type, props, children) => React.createElement(type, props, children)
 //     })
 // }
 
+function runSimulation(state) {
+    setTimeout(() => {
+        const l = state.model.lattice;
+        const r = l.x + l.y + l.dx + l.dy;
+        console.log('sim result: ', r);
+        appState.dispatch(appStateSlice.actions.simulation());
+    }, Number(state.model.lattice.cycles) * 1000);
+}
+
 function editorLabel(label) {
     return e(
         'label',
@@ -94,11 +79,8 @@ function editorLabel(label) {
 function EditorValue(props) {
     return e(
         function() {
-
-            console.log('333',appState.getState().model[props.modelKey][props.fieldName]);
             const value = ReactRedux.useSelector((state) => state.model[props.modelKey][props.fieldName]);
             const dispatch = ReactRedux.useDispatch();
-            console.log('2222 appState: ', appState.getState());
             return React.createElement(
                 'input',
                 {
@@ -112,19 +94,13 @@ function EditorValue(props) {
             );
         }
     )
-
-
-
 }
 
 
 
 function editorField(props) {
     console.log('props: ', props);
-    console.log('APP_SCHEMA:', APP_SCHEMA.model[props.modelKey]);
-    const m = APP_SCHEMA.model[props.modelKey][props.fieldName];
 
-    console.log('m', m);
     return React.createElement(
         'div',
         null,
@@ -194,6 +170,7 @@ function editorField(props) {
                 key: '1',
                 onClick: () => {
                     dispatch(appStateSlice.actions.simulation());
+                    runSimulation(appState.getState());
                     console.log(appState.getState());
                 }
             },
@@ -234,9 +211,7 @@ function editorField(props) {
                             {key: 'panelHeading', className: 'panel-heading'},
                             'Visualization'
                         ),
-                        e(SimStatus, {key: '123'}),
                         e('div', {className: 'panel-content'}, children),
-                        e(SimulationStartButton, {key: '345'}),
                     ]
         )
       }
@@ -250,21 +225,21 @@ function editorField(props) {
           ReactRedux.Provider,
           {store: appState},
           [
-            // ,
             e(
                 createPanel(
                     [
+                        e(SimStatus, {key: '123'}),
                         editorField({modelKey: 'lattice', fieldName: 'x'}),
                         editorField({modelKey: 'lattice', fieldName: 'y'}),
                         editorField({modelKey: 'lattice', fieldName: 'dx'}),
                         editorField({modelKey: 'lattice', fieldName: 'dy'}),
-                        editorField({modelKey: 'lattice', fieldName: 'cycles'})
+                        editorField({modelKey: 'lattice', fieldName: 'cycles'}),
+                        e(SimulationStartButton, {key: '345'}),
+                        e('div', null, 'Sim Result:')
                     ]
                 )
             ),
           ]
-
-        //   editorLabel('hello world')
 
         )
   )
