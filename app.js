@@ -5,14 +5,12 @@ const appStateSlice = RTK.createSlice({
       simState: 'OFF',
       result: false,
       model: {
-        lattice: {
+        visualization: {
             x: 0,
             y: 0,
             dx: 0,
             dy: 0,
             cycles: 4,
-        },
-        visualization: {
             useTwiss: false
         },
       }
@@ -64,10 +62,10 @@ const e = (type, props, children) => React.createElement(type, props, children)
 
 function runSimulation(state) {
     setTimeout(() => {
-        const l = state.model.lattice;
-        const r = Number(l.x) + Number(l.y) + Number(l.dx) + Number(l.dy);
+        const v = state.model.visualization;
+        const r = Number(v.x) + Number(v.y) + Number(v.dx) + Number(v.dy);
         appState.dispatch(appStateSlice.actions.simulation({result: r}));
-    }, Number(state.model.lattice.cycles) * 1000);
+    }, Number(state.model.visualization.cycles) * 1000);
 }
 
 function editorLabel(label) {
@@ -136,7 +134,7 @@ function editorField(props) {
 //     })
 // }
 
-  function Counter() {
+function Counter() {
 
     const count = ReactRedux.useSelector((state) => state.value)
     const dispatch = ReactRedux.useDispatch()
@@ -159,9 +157,9 @@ function editorField(props) {
             ]
         )
     )
-  }
+}
 
-  function SimulationStartButton() {
+function SimulationStartButton() {
 
     const sim = ReactRedux.useSelector((state) => state.simState)
     const dispatch = ReactRedux.useDispatch()
@@ -180,9 +178,9 @@ function editorField(props) {
             [sim == 'OFF' ? 'Start Simulation' : 'End Simulation']
         )
     )
-  }
+}
 
-  function Spinner() {
+function Spinner() {
    return  e(
        'div',
         {key: '12', className: 'btn btn-lg'},
@@ -194,16 +192,16 @@ function editorField(props) {
             ['   Running Simulation...']
         ]
     )
-  }
+}
 
-  function SimStatus() {
+function SimStatus() {
       const sim = ReactRedux.useSelector((state) => state.simState);
       return (
           e('div', {key: '2'}, [sim == 'ON' ? Spinner() : 'SIM IS NOT RUNNING'])
       )
-  }
+}
 
-  function createPanel(children) {
+function createPanel(children) {
     return function Panel() {
         return  e(
                     'div',
@@ -218,40 +216,40 @@ function editorField(props) {
                     ]
         )
       }
-  }
+}
 
-  function SimResult() {
+function SimResult() {
     const res = ReactRedux.useSelector((state) => state.result)
         return e(
             'div',
             {key: 'result'},
             res || res === 0 ? 'SIM RESULT: ' + res : ''
         )
-  }
+}
 
 
 
-  const root = ReactDOM.createRoot(document.getElementById('root'))
-  root.render(
-      e(
-          ReactRedux.Provider,
-          {store: appState},
-          [
-            e(
-                createPanel( // Another example of wrapping funcional components to pass props
-                    [
-                        e(SimStatus, {key: '123'}),
-                        editorField({modelKey: 'lattice', fieldName: 'x'}),
-                        editorField({modelKey: 'lattice', fieldName: 'y'}),
-                        editorField({modelKey: 'lattice', fieldName: 'dx'}),
-                        editorField({modelKey: 'lattice', fieldName: 'dy'}),
-                        editorField({modelKey: 'lattice', fieldName: 'cycles'}),
-                        e(SimulationStartButton, {key: '345'}),
-                        e(SimResult)
-                    ]
-                )
-            ),
-          ]
+const root = ReactDOM.createRoot(document.getElementById('root'))
+root.render(
+    e(
+        ReactRedux.Provider,
+        {store: appState},
+        [
+        e(
+            createPanel( // Another example of wrapping funcional components to pass props, note how createPanel(elems) returns a function to e()
+                [
+                    e(SimStatus, {key: '123'}),
+                    editorField({modelKey: 'visualization', fieldName: 'x'}),
+                    editorField({modelKey: 'visualization', fieldName: 'y'}),
+                    editorField({modelKey: 'visualization', fieldName: 'dx'}),
+                    editorField({modelKey: 'visualization', fieldName: 'dy'}),
+                    editorField({modelKey: 'visualization', fieldName: 'cycles'}),
+                    e(SimulationStartButton, {key: '345'}),
+                    e(SimResult)
+                ]
+            )
+        ),
+        ]
 
-        )
-  )
+    )
+)
