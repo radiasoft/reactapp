@@ -217,31 +217,29 @@ function createModal(props) {
           //     * OPTIONS:
           //         - https://sabe.io/tutorials/how-to-create-modal-popup-box
           //         - https://css-tricks.com/considerations-styling-modal/
-                // <!-- Button trigger modal -->
-                // <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
-                // Launch demo modal
-                // </button>
+        //   <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#smallShoes">
+        //   Click Me
+        //   </button>
 
-                // <!-- Modal -->
-                // <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                // <div class="modal-dialog" role="document">
-                //     <div class="modal-content">
-                //     <div class="modal-header">
-                //         <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
-                //         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                //         <span aria-hidden="true">&times;</span>
-                //         </button>
-                //     </div>
-                //     <div class="modal-body">
-                //         ...
-                //     </div>
-                //     <div class="modal-footer">
-                //         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                //         <button type="button" class="btn btn-primary">Save changes</button>
-                //     </div>
-                //     </div>
-                // </div>
-                // </div>
+        //   <!-- The modal -->
+        //   <div class="modal fade" id="smallShoes" tabindex="-1" role="dialog" aria-labelledby="modalLabelSmall" aria-hidden="true">
+        //   <div class="modal-dialog modal-sm">
+        //   <div class="modal-content">
+
+        //   <div class="modal-header">
+        //   <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        //   <span aria-hidden="true">&times;</span>
+        //   </button>
+        //   <h4 class="modal-title" id="modalLabelSmall">Modal Title</h4>
+        //   </div>
+
+        //   <div class="modal-body">
+        //   Modal content...
+        //   </div>
+
+        //   </div>
+        //   </div>
+        //   </div>
 
     }
 }
@@ -257,20 +255,37 @@ function createPanel(title, children) {
                             {key: 'panelHeading', className: 'panel-heading'},
                             [
                                 title,
-                                e('div', {className: 'pencil', toggle: 'modal', target: '#exampleModal'}, '')
+                                e(
+                                    'span',
+                                    {className: 'pencil', 'data-toggle': 'modal', 'data-target': '#exampleModal'},
+                                    ''
+                                ),
+                                e(
+                                    'div',
+                                    {id: 'exampleModal', className: 'modal fade', tabindex: '-1', role: 'dialog', 'aria-labelledby': 'exampleModalLabel', 'aria-hidden': 'true'},
+                                    e(
+                                        'div',
+                                        {className: 'modal-dialog modal-sm'},
+                                        [
+                                            e(
+                                                'div',
+                                                {className: 'modal-body'},
+                                                e(
+                                                    'button',
+                                                    {className: 'btn btn-primary', 'data-dismiss': 'modal'},
+                                                    'Button inside'
+                                                )
+                                            )
+                                        ]
+
+                                    )
+                                )
                             ]
 
                         ),
                         e('div', {className: 'container'}, children),
-                        e(
-                            'div',
-                            {id: 'exampleModal', role: 'dialog'},
-                            // e(
-                            //     'button',
-                            //     {className: 'btn btn-primary', dismiss: 'modal'},
-                            //     'Button inside'
-                            // )
-                        )
+
+
                     ]
         )
       }
