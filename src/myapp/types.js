@@ -4,7 +4,7 @@ const WithInputDefaults = ({value, valid, touched, onChange, defaultUIValue}, pr
     const newProps = {
         ...props,
         value: (value !== undefined && value !== null) ? value : defaultUIValue,
-        isValid: valid && touched,
+        //isValid: valid && touched,
         isInvalid: !valid && touched,
         onChange
     }

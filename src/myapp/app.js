@@ -1,21 +1,37 @@
 import { Fragment, useEffect, useState } from "react";
-import { Form } from "react-bootstrap";
+import { Form, Modal, Button } from "react-bootstrap";
 import { combineReducers, configureStore, createSlice } from "@reduxjs/toolkit";
 import { bakeEnums, globalTypes } from "./types";
 import { Provider, useStore, useSelector } from "react-redux";
+
+import "./myapp.scss"
 
 const globalModels = createSlice({
     name: 'models',
     initialState: {},
     reducers: {
-        // action.payload: {name: string, value: {}}
+        /**
+         * @param {*} state 
+         * @param {{
+         *  type: string,
+         *  payload: { name: string, value: * }
+         * }} action 
+         * @returns 
+         */
         updateModel: (state, action) => {
             var nextState = {...state};
             var {name, value} = action.payload;
             nextState[name] = value;
             return nextState;
         },
-        // action.payload: {name: string}
+        /**
+         * @param {*} state 
+         * @param {{
+         *  type: string,
+         *  payload: { name: string, value: * }
+         * }} action 
+         * @returns 
+         */
         deleteModel: (state, action) => {
             var nextState = {...state};
             var {name} = action.payload;
@@ -30,7 +46,7 @@ const rootReducer = combineReducers({
 })
 
 // make sure selector is in context of 'rootReducer' including the name of the slice there
-const selectorForGlobalModel = (modelName) => (state) => state.models[modelName] || {};
+const selectorForModel = (modelName) => (state) => state.models[modelName] || {};
 
 const globalStore = configureStore({
     reducer: rootReducer
@@ -88,25 +104,33 @@ class FieldController {
      * } } 
      */
     constructor({ displayName, typeName, description, type, initialValue }) {
-        this.value = initialValue; // todo: eval
+        //this.value = initialValue; // todo: eval
+        this.rawValue = (initialValue !== undefined && initialValue !== null) ? "" + initialValue : ""
         this.displayName = displayName;
         this.typeName = typeName;
-        this.touched = false;
+        // form should complete / mark invalid based on initial values too
+        this.touched = (initialValue !== undefined && initialValue !== null);
         this.description = description;
         this.type = type;
-        this.valid = this.type.validate(this.value); // todo: initialize
+        this.valid = this.type.validate(this.rawValue);
     }
 
     onModelDataChanged({value, valid}) {
-        this.value = value;
+        this.touched = true;
+        this.rawValue = value;
         this.valid = valid;
     };
 
     onUIDataChanged(event) {
         const nextValue = event.target.value;
-        this.touched = true;
-        this.valid = this.type.validate(nextValue);
-        this.value = this.type.convertValueFromUI(nextValue);
+        if(this.rawValue != nextValue) {
+            this.rawValue = nextValue;
+            this.touched = true;
+            this.valid = this.type.validate(nextValue);
+            //this.value = this.type.convertValueFromUI(nextValue);
+            return true;
+        }
+        return false;
     }
 } 
 
@@ -134,12 +158,19 @@ const createFieldControllersForView = ({viewName, view, types, model}) => {
 }
 
 const SchemaView = (props) => {
-    const {viewInfo: {view, viewName, model, modelName}, types} = props;
+    const {viewInfo: {view, viewName, model, modelName}, types, subviewName} = props;
 
-    const [fieldControllers, updateFieldControllers] = useState(undefined);
+    const [fieldControllers, updateFieldControllers] = useState(() => {
+        return createFieldControllersForView({
+            viewName: viewName,
+            view: view,
+            types: types,
+            model: model
+        })
+    });
 
     const store = useStore();
-    const globalModelSelector = selectorForGlobalModel(modelName);
+    const globalModelSelector = selectorForModel(modelName);
     const formState = useSelector(globalModelSelector);
     // helper function to map modelName to all update actions
     const updateModelAction = (newModel) => globalModels.actions.updateModel({ name: modelName, value: newModel });
@@ -151,66 +182,103 @@ const SchemaView = (props) => {
         store.dispatch(action);
     }
 
-    // make initial field controllers
-    useBlockingEffect(() => {
-        const nextFieldControllers = createFieldControllersForView({
-            viewName: viewName,
-            view: view,
-            types: types,
-            model: model
-        })
-        updateFieldControllers(nextFieldControllers);
-    })
-
     // TODO: rendering should not have side effects but is this considered a side effect since its just state?
-    if(fieldControllers) {
-        for(const [fieldName, fieldController] of Object.entries(fieldControllers)) {
-            if(formState[fieldName] && fieldController.value !== formState[fieldName].value) {
-                fieldController.onModelDataChanged(formState[fieldName]);
-            }
+    for(const [fieldName, fieldController] of Object.entries(fieldControllers)) {
+        if(formState[fieldName] && fieldController.rawValue !== formState[fieldName].value) {
+            fieldController.onModelDataChanged(formState[fieldName]);
         }
     }
 
     // build view binding inputs to field controllers purely
-    var fieldElements = undefined;
-    if(fieldControllers) {
-        fieldElements = Object.entries(fieldControllers).map(([fieldName, fieldController]) => {
-            const onChange = (value) => {
-                if(value != fieldController.value) {
-                    fieldController.onUIDataChanged(value);
-                    updateFieldValueInModel(fieldName, {
-                        value: fieldController.value,
-                        valid: fieldController.valid
-                    })
-                }
+    const fieldElements = mapProperties(fieldControllers, (fieldName, fieldController) => {
+        const onChange = (event) => {
+            if(fieldController.onUIDataChanged(event)) {
+                updateFieldValueInModel(fieldName, {
+                    value: fieldController.rawValue,
+                    valid: fieldController.valid
+                })
             }
+        }
 
-            return (
-                <Fragment key={fieldName}>
-                    <Form.Label>{fieldController.displayName}</Form.Label>
-                    <FieldControllerInput 
-                        key={fieldName} 
-                        value={fieldController.value}
-                        valid={fieldController.valid}
-                        touched={fieldController.touched}
-                        onChange={onChange}
-                        type={fieldController.type}/>
-                </Fragment>
-            )
-            
-        })
-    }
+        return (
+            <Fragment key={fieldName}>
+                <Form.Label className="sr-panel-view-input-title">{fieldController.displayName}</Form.Label>
+                <FieldControllerInput
+                    className="sr-panel-view-input"
+                    key={fieldName} 
+                    value={fieldController.rawValue}
+                    valid={fieldController.valid}
+                    touched={fieldController.touched}
+                    onChange={onChange}
+                    type={fieldController.type}/>
+            </Fragment>
+        )
+    })
+
+    const inputElementsOfSubview = (subview) => subview.map(fieldName => fieldElements[fieldName]);
+
+    const subview = view[subviewName];
+
+    const childRoot = (
+        <>
+            {subview && inputElementsOfSubview(subview)}
+        </>
+    )
 
     return (
-        <div key={viewName}>
-            <div>
-                {view.title || viewName}
-            </div>
-            <Form key={viewName}>
-                {fieldElements}
-            </Form>
-        </div>
+        <Form key={viewName}>
+            {childRoot}
+        </Form>
     );
+}
+
+const ViewPanel = (props) => {
+    const {store, viewInfo, ...otherProps} = props;
+
+    const [advancedModalShown, updateAdvancedModalShown] = useState(false);
+
+
+    // in here is where all of the checking for the form state in store and creation of save/cancel buttons will be
+    // NOT IN SchemaView!!!
+    // SchemaView is only for modifying the given 'store' using a form
+
+    const buttonRoot = <Button variant="secondary" onClick={() => updateAdvancedModalShown(true)}>Open Advanced</Button>
+
+    return (
+        <Provider store={store}>
+            <Panel title={viewInfo.view.title || viewInfo.viewName} buttons={[buttonRoot]}>
+                <SchemaView key={viewInfo.viewName} viewInfo={viewInfo} subviewName={'basic'} {...otherProps}></SchemaView>
+                <Modal show={advancedModalShown} onHide={() => updateAdvancedModalShown(false)}>
+                    <Modal.Header>
+                        <Modal.Title>Advanced</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <SchemaView key={viewInfo.viewName} viewInfo={viewInfo} subviewName={'advanced'} {...otherProps}></SchemaView>
+                    </Modal.Body>
+                </Modal>
+            </Panel>
+        </Provider>
+    )
+}
+
+const Panel = (props) => {
+    const {title, buttons, ...otherProps} = props;
+
+    return (
+        <div className="sr-panel" {...otherProps}>
+            <div className="sr-panel-header">
+                <div className="sr-panel-title">
+                    {title}
+                </div>
+                <div className="sr-panel-buttons">
+                    {buttons}
+                </div>
+            </div>
+            <div className="sr-panel-body">
+                {props.children}
+            </div>
+        </div>
+    )
 }
 
 const AppRoot = (props) => {
@@ -237,14 +305,17 @@ const AppRoot = (props) => {
                 view,
                 viewName
             }
-            return <SchemaView key={viewName} viewInfo={viewInfo} types={types}></SchemaView>
+
+            return (
+                <ViewPanel store={globalStore} key={viewName} viewInfo={viewInfo} types={types} subviewName={'basic'}></ViewPanel>
+            )
         })
     }
 
     return (
-        <Provider store={globalStore}>
+        <div className="sr-simulation-outer">
             {viewPanels}
-        </Provider>
+        </div>
     )
 }
 

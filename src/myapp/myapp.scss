@@ -1,20 +1,38 @@
-.sr-path-subtree {
-    padding-left: 20px;
+@import "~bootstrap/scss/bootstrap";
+
+$enable-shadows: true;
+
+.sr-simulation-outer {
+    margin: 30px;
+    display: flex;
+    flex-flow: row wrap;
 }
 
-.sr-path-tree {
-    width: 300px;
+.sr-panel {
+    @extend .shadow;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px;
+    display: flex;
+    flex-flow: column nowrap;
+    width: 500px;
 }
 
-.sr-simulation-browser-thumbnail {
-    width: 100px;
-    height: 100px;
+.sr-panel * {
+    width: 100%;
 }
 
-.sr-simulation-browser-thumbnails {
-
-    flex-grow: 1;
+.sr-panel-header {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
 }
 
-.sr-simulation-browser {
+.sr-panel-title {
+    justify-self: flex-start;
 }
+
+.sr-panel-buttons {
+    justify-self: flex-end;
+}
+
