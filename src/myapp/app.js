@@ -10,47 +10,67 @@ const globalModels = createSlice({
     name: 'models',
     initialState: {},
     reducers: {
-        /**
-         * @param {*} state 
-         * @param {{
-         *  type: string,
-         *  payload: { name: string, value: * }
-         * }} action 
-         * @returns 
-         */
         updateModel: (state, action) => {
             var nextState = {...state};
-            var {name, value} = action.payload;
-            nextState[name] = value;
-            return nextState;
-        },
-        /**
-         * @param {*} state 
-         * @param {{
-         *  type: string,
-         *  payload: { name: string, value: * }
-         * }} action 
-         * @returns 
-         */
-        deleteModel: (state, action) => {
-            var nextState = {...state};
-            var {name} = action.payload;
-            delete nextState[name];
+            var {name, model} = action.payload;
+            nextState[name] = model;
             return nextState;
         }
     }
 })
 
-const rootReducer = combineReducers({
-    models: globalModels.reducer
+const selectorForModel = (modelName) => (state) => state.models[modelName] || {}
+const selectorForModels = (state) => state.models || {}
+
+const updateModelAction = (modelName, model) => globalModels.actions.updateModel({name: modelName, model});
+
+const globalModelStore = configureStore({
+    reducer: combineReducers({
+        models: globalModels.reducer
+    })
 })
 
-// make sure selector is in context of 'rootReducer' including the name of the slice there
-const selectorForModel = (modelName) => (state) => state.models[modelName] || {};
+function createFormStateStore() {
+    const formStates = createSlice({
+        name: 'formStates',
+        initialState: {},
+        reducers: {
+            /**
+             * @param {*} state 
+             * @param {{
+             *  type: string,
+             *  payload: { name: string, value: * }
+             * }} action 
+             * @returns 
+             */
+            updateFormState: (state, action) => {
+                var nextState = {...state};
+                var {name, value} = action.payload;
+                nextState[name] = value;
+                return nextState;
+            }
+        }
+    })
+    
+    const rootReducer = combineReducers({
+        formStates: formStates.reducer
+    })
+    
+    // make sure selector is in context of 'rootReducer' including the name of the slice there
+    const selectorForFormState = (name) => (state) => state.formStates[name] || {};
+    
+    const updateFormStateAction = (name, newFormState) => formStates.actions.updateFormState({ name, value: newFormState });
+    
+    const formStateStore = configureStore({
+        reducer: rootReducer
+    });
 
-const globalStore = configureStore({
-    reducer: rootReducer
-});
+    return {
+        store: formStateStore,
+        selectorForFormState,
+        updateFormStateAction
+    }
+}
 
 /**
  * Implements useEffect with the ability to block until the returned callback is called. Will run the
@@ -103,20 +123,20 @@ class FieldController {
      *  type: *
      * } } 
      */
-    constructor({ displayName, typeName, description, type, initialValue }) {
+    constructor({ displayName, typeName, description, type }, {value, valid, touched}) {
         //this.value = initialValue; // todo: eval
-        this.rawValue = (initialValue !== undefined && initialValue !== null) ? "" + initialValue : ""
+       // const tempInitialValue = (initialValue !== undefined && initialValue !== null) ? "" + initialValue : "";
+        this.rawValue = (value !== undefined && value !== null) ? value : ""
         this.displayName = displayName;
         this.typeName = typeName;
-        // form should complete / mark invalid based on initial values too
-        this.touched = (initialValue !== undefined && initialValue !== null);
+        this.touched = touched;
         this.description = description;
         this.type = type;
-        this.valid = this.type.validate(this.rawValue);
+        this.valid = valid;
     }
 
-    onModelDataChanged({value, valid}) {
-        this.touched = true;
+    onModelDataChanged({value, valid, touched}) {
+        this.touched = touched;
         this.rawValue = value;
         this.valid = valid;
     };
@@ -127,7 +147,6 @@ class FieldController {
             this.rawValue = nextValue;
             this.touched = true;
             this.valid = this.type.validate(nextValue);
-            //this.value = this.type.convertValueFromUI(nextValue);
             return true;
         }
         return false;
@@ -143,7 +162,7 @@ class FieldController {
  * }}
  * @returns {{ [fieldName: string]: FieldController }}
  */
-const createFieldControllersForView = ({viewName, view, types, model}) => {
+const createFieldControllersForView = ({viewName, view, types, model}, formState) => {
     return mapProperties(model, (fieldName, fieldSchema) => {
         const [displayName, typeName, defaultValue, description] = fieldSchema;
         const type = types[typeName];
@@ -151,34 +170,28 @@ const createFieldControllersForView = ({viewName, view, types, model}) => {
             displayName,
             typeName,
             description,
-            type,
-            initialValue: defaultValue
-        })
+            type
+        },formState[fieldName])
     });
 }
 
 const SchemaView = (props) => {
-    const {viewInfo: {view, viewName, model, modelName}, types, subviewName} = props;
-
-    const [fieldControllers, updateFieldControllers] = useState(() => {
-        return createFieldControllersForView({
-            viewName: viewName,
-            view: view,
-            types: types,
-            model: model
-        })
-    });
+    const {viewInfo: {view, viewName, model, modelName}, types, subviewName, formStateSelector, updateFormStateAction} = props;
 
     const store = useStore();
-    const globalModelSelector = selectorForModel(modelName);
-    const formState = useSelector(globalModelSelector);
-    // helper function to map modelName to all update actions
-    const updateModelAction = (newModel) => globalModels.actions.updateModel({ name: modelName, value: newModel });
+    const formState = useSelector(formStateSelector);
+
+    const fieldControllers = createFieldControllersForView({
+        viewName: viewName,
+        view: view,
+        types: types,
+        model: model
+    }, formState);
     
     const updateFieldValueInModel = (fieldName, value) => {
         const nextModel = {...formState};
         nextModel[fieldName] = value;
-        const action = updateModelAction(nextModel)
+        const action = updateFormStateAction(nextModel)
         store.dispatch(action);
     }
 
@@ -195,7 +208,8 @@ const SchemaView = (props) => {
             if(fieldController.onUIDataChanged(event)) {
                 updateFieldValueInModel(fieldName, {
                     value: fieldController.rawValue,
-                    valid: fieldController.valid
+                    valid: fieldController.valid,
+                    touched: fieldController.touched
                 })
             }
         }
@@ -232,32 +246,77 @@ const SchemaView = (props) => {
     );
 }
 
-const ViewPanel = (props) => {
-    const {store, viewInfo, ...otherProps} = props;
+const ViewPanelActionButtons = (props) => {
+    const {canSave, onSave, onCancel, ...otherProps} = props;
+    return (
+        <div className="sr-panel-view-action-buttons" {...otherProps}>
+            {canSave && <Button onClick={onSave} variant="primary" className="sr-panel-view-action-button sr-panel-view-action-button-save">Save Changes</Button>}
+            <Button onClick={onCancel} variant="secondary" className="sr-panel-view-action-button sr-panel-view-action-button-cancel">Cancel</Button>
+        </div>
+    )
+}
 
+const ViewPanel = (props) => {
+    const {formStateStore, ...otherProps} = props;
+    return (
+        <Provider store={formStateStore}>
+            <ViewPanelInner {...otherProps}>
+
+            </ViewPanelInner>
+        </Provider>
+    )
+}
+
+const ViewPanelInner = (props) => {
+    const { viewInfo, types, formStateSelector, updateFormStateAction, ...otherProps} = props;
+    const passedProps = {
+        viewInfo,
+        types,
+        formStateSelector,
+        updateFormStateAction,
+        ...otherProps
+    };
+    
     const [advancedModalShown, updateAdvancedModalShown] = useState(false);
 
+    const store = useStore();
+    const formState = useSelector(formStateSelector);
 
     // in here is where all of the checking for the form state in store and creation of save/cancel buttons will be
     // NOT IN SchemaView!!!
     // SchemaView is only for modifying the given 'store' using a form
 
+    const isModelDirty = () => Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
+    const isModelValid = () => !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false);
+    const clearFormState = () => {
+        store.dispatch(updateFormStateAction(buildModelDefaultFormState(viewInfo.model, types))); // TODO: this does not work because the form initializes blindly, need better form init
+    };
+    const saveModel = () => {
+        console.log("Congrats, you saved a model.");
+        console.log(formState);
+        clearFormState();
+    }
+
     const buttonRoot = <Button variant="secondary" onClick={() => updateAdvancedModalShown(true)}>Open Advanced</Button>
+    const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={clearFormState}></ViewPanelActionButtons>
+    const dirty = isModelDirty();
 
     return (
-        <Provider store={store}>
-            <Panel title={viewInfo.view.title || viewInfo.viewName} buttons={[buttonRoot]}>
-                <SchemaView key={viewInfo.viewName} viewInfo={viewInfo} subviewName={'basic'} {...otherProps}></SchemaView>
-                <Modal show={advancedModalShown} onHide={() => updateAdvancedModalShown(false)}>
-                    <Modal.Header>
-                        <Modal.Title>Advanced</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <SchemaView key={viewInfo.viewName} viewInfo={viewInfo} subviewName={'advanced'} {...otherProps}></SchemaView>
-                    </Modal.Body>
-                </Modal>
-            </Panel>
-        </Provider>
+        <Panel title={viewInfo.view.title || viewInfo.viewName} buttons={[buttonRoot]}>
+            <SchemaView key={viewInfo.viewName} subviewName={'basic'} {...passedProps}></SchemaView>
+            <Modal show={advancedModalShown} onHide={() => updateAdvancedModalShown(false)}>
+                <Modal.Header>
+                    <Modal.Title>Advanced</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <SchemaView key={viewInfo.viewName} subviewName={'advanced'} {...passedProps}></SchemaView>
+                </Modal.Body>
+                {dirty && <Modal.Footer>
+                    {actionButtons}
+                </Modal.Footer>}
+            </Modal>
+            {dirty && actionButtons}
+        </Panel>
     )
 }
 
@@ -281,12 +340,42 @@ const Panel = (props) => {
     )
 }
 
+const buildModelDefaultFormState = (model, types) => mapProperties(model, (fieldName, [displayName, typeName, initialValue, description]) => {
+    const hasInitialValue = initialValue !== undefined && initialValue !== null;
+    const type = types[typeName];
+    return {
+        valid: hasInitialValue ? type.validate(initialValue) : false,
+        value: hasInitialValue ? initialValue : "",
+        touched: false
+    }
+})
+
 const AppRoot = (props) => {
+    return (
+        <Provider store={globalModelStore}>
+            <AppRootInner {...props}></AppRootInner>
+        </Provider>
+    )
+}
+
+const AppRootInner = (props) => {
     const [schema, updateSchema] = useState(undefined);
+
+    const [{store: formStateStore, updateFormStateAction, selectorForFormState}, updateFormStateStore] = useState(() => createFormStateStore());
+
+    const models = useSelector(selectorForModels);
 
     useBlockingEffect(() => {
         fetch(props.schemaPath).then(resp => resp.text().then(text => {
-            updateSchema(JSON.parse(text))
+            const schema = JSON.parse(text);
+            if(schema.model) {
+                const types = bakeEnums(globalTypes, schema.enum);
+                Object.entries(schema.model).forEach(([modelName, model]) => {
+                    const initialFormState = buildModelDefaultFormState(model, types); // this is where model state would be used to initialize form values if that were possible in this example
+                    formStateStore.dispatch(updateFormStateAction(modelName, initialFormState));
+                })
+            }
+            updateSchema(schema);
         }))
     })
 
@@ -307,7 +396,13 @@ const AppRoot = (props) => {
             }
 
             return (
-                <ViewPanel store={globalStore} key={viewName} viewInfo={viewInfo} types={types} subviewName={'basic'}></ViewPanel>
+                <ViewPanel 
+                    formStateStore={formStateStore} 
+                    updateFormStateAction={(nextState) => updateFormStateAction(modelName, nextState)}
+                    formStateSelector={selectorForFormState(modelName)}
+                    key={viewName} 
+                    viewInfo={viewInfo} 
+                    types={types}/>
             )
         })
     }

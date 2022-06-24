@@ -36,3 +36,14 @@ $enable-shadows: true;
     justify-self: flex-end;
 }
 
+.sr-panel-view-action-buttons {
+    display: flex;
+    flex-flow: row nowrap;
+    padding: 10px;
+    justify-content: flex-end;
+}
+
+.sr-panel-view-action-button {
+    width: 150px;
+    margin-left: 15px;
+}
