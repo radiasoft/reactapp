@@ -1,0 +1,67 @@
+{
+    "model": {
+        "dog": {
+            "pktype": "Struct",
+            "label": "Dog",
+            "values": {
+                "breed": {
+                    "pktype": "pktype.String",
+                    "label": "Breed",
+                    "value": ""
+                },
+                "gender": {
+                    "pktype": "myapptype.Gender",
+                    "label": "Gender",
+                    "value": "myapptype.Gender.male"
+                },
+                "height": {
+                    "pktype": "pktype.Float",
+                    "label": "Height",
+                    "toolttip": "Distance from front paws to withers",
+                    "units": "m",
+                    "value": 0.5
+                },
+                "weight": {
+                    "pktype": "pktype.Float",
+                    "label": "Weight",
+                    "units": "lb",
+                    "value": 60.5
+                },
+                "disposition": {
+                    "pktype": "myapptype.DogDisposition",
+                    "label": "Disposition",
+                    "value": "myapptype.DogDisposition.friendly"
+                },
+                "favoriteTreat": {
+                    "pktype": "pktype.String",
+                    "isRequired": false,
+                    "label": "Favorite Treat",
+                    "value": ""
+                }
+            }
+        },
+        "heightWeightReport": {}
+    },
+    "view": {
+        "dog": {
+            "title": "Dog",
+            "basic": [
+                "breed",
+                "weight",
+                "height",
+                "disposition",
+                "favoriteTreat"
+            ],
+            "advanced": [
+                "breed",
+                "gender",
+                "weight",
+                "height"
+            ]
+        },
+        "heightWeightReport": {
+            "title": "Physical Characteristics",
+            "advanced": []
+        }
+    }
+}
