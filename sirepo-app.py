@@ -7,6 +7,10 @@ u"""Classes defining a Sirepo application
 
 from pykern.pkcollections import PKDict
 
+
+class SRType():
+    pass
+
 # A class defining an app based on its schema.
 class SRApp(PKDict):
 
@@ -22,7 +26,7 @@ class SRApp(PKDict):
             self.enums[x] = SREnum(x, schema.enum[x])
 
         for x in schema.view:
-            this.views[x] = SRView(x, schema.view[x])
+            self.views[x] = SRView(x, schema.view[x])
 
 
     def get_field_from_model(self, model_name, field_name):

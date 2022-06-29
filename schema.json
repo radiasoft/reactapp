@@ -1,11 +1,48 @@
 {
-    "model": {
+    "types": {
+        "Gender": {
+            "pktype": "Choices",
+            "value": [
+                {
+                    "pktype": "String",
+                    "label": "Male",
+                    "value": "male"
+                },
+                {
+                    "pktype": "String",
+                    "label": "Female",
+                    "value": "female"
+                }
+            ]
+        },
+        "DogDisposition": {
+            "pktype": "Choices",
+            "value": [
+                {
+                    "pktype": "String",
+                    "label": "Aggressive",
+                    "value": "aggressive"
+                },
+                {
+                    "pktype": "String",
+                    "label": "Friendly",
+                    "value": "friendly"
+                },
+                {
+                    "pktype": "String",
+                    "label": "Female",
+                    "value": "Submissive"
+                }
+            ]
+        }
+    },
+    "models": {
         "dog": {
             "pktype": "Struct",
             "label": "Dog",
-            "values": {
+            "value": {
                 "breed": {
-                    "pktype": "pktype.String",
+                    "pktype": "String",
                     "label": "Breed",
                     "value": ""
                 },
@@ -15,14 +52,14 @@
                     "value": "myapptype.Gender.male"
                 },
                 "height": {
-                    "pktype": "pktype.Float",
+                    "pktype": "Float",
                     "label": "Height",
-                    "toolttip": "Distance from front paws to withers",
+                    "tooltip": "Distance from front paws to withers",
                     "units": "m",
                     "value": 0.5
                 },
                 "weight": {
-                    "pktype": "pktype.Float",
+                    "pktype": "Float",
                     "label": "Weight",
                     "units": "lb",
                     "value": 60.5
@@ -33,7 +70,7 @@
                     "value": "myapptype.DogDisposition.friendly"
                 },
                 "favoriteTreat": {
-                    "pktype": "pktype.String",
+                    "pktype": "String",
                     "isRequired": false,
                     "label": "Favorite Treat",
                     "value": ""
@@ -42,7 +79,7 @@
         },
         "heightWeightReport": {}
     },
-    "view": {
+    "views": {
         "dog": {
             "title": "Dog",
             "basic": [
