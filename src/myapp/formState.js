@@ -16,6 +16,6 @@ export const formStatesSlice = createSlice({
     }
 });
 
-export const selectFormState = (name) => (state) => state.formStates[name] || null;
+export const selectFormState = (name) => (state) => state[formStatesSlice.name][name] || null;
 
 export const { updateFormState, updateFormFieldState } = formStatesSlice.actions;

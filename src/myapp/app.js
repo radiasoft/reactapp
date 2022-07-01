@@ -117,20 +117,20 @@ const createFieldControllersForView = ({viewName, view, types, modelSchema}, for
 }
 
 const LabelTooltip = (props) => {
-  const renderTooltip = (childProps) => (
-      <Tooltip id="label-tooltip" {...childProps}>
-          {props.text}
-      </Tooltip>
-  );
-  return (
-    <OverlayTrigger
-      placement="bottom"
-      delay={{ show: 250, hide: 400 }}
-      overlay={renderTooltip}
-    >
-        <span> <FontAwesomeIcon icon={Icon.faInfoCircle} fixedWidth /></span>
-    </OverlayTrigger>
-  );
+    const renderTooltip = (childProps) => (
+        <Tooltip id="label-tooltip" {...childProps}>
+            {props.text}
+        </Tooltip>
+    );
+    return (
+        <OverlayTrigger
+            placement="bottom"
+            delay={{ show: 250, hide: 400 }}
+            overlay={renderTooltip}
+        >
+            <span> <FontAwesomeIcon icon={Icon.faInfoCircle} fixedWidth /></span>
+        </OverlayTrigger>
+    );
 }
 
 const SchemaView = (props) => {
@@ -177,14 +177,9 @@ const SchemaView = (props) => {
     })
     const inputElementsOfSubview = (subview) => subview.map(fieldName => fieldElements[fieldName]);
     const subview = view[subviewName];
-    const childRoot = (
-        <>
-            {subview && inputElementsOfSubview(subview)}
-        </>
-    )
     return (
         <Form key={viewName}>
-            {childRoot}
+            {subview && inputElementsOfSubview(subview)}
         </Form>
     );
 }
@@ -339,39 +334,33 @@ const AppRoot = (props) => {
     )
 }
 
-const AppRootInner = (props) => {
-    const {schema} = props;
+const AppRootInner = ({schema}) => {
     const isLoaded = useSelector(selectIsLoaded);
     const dispatch = useDispatch();
-    let viewPanels = [];
-    if (schema) {
-        if (isLoaded) {
-            viewPanels = Object.keys(schema.view).map(viewName => {
-                return (
-                    <Col md={6} className="mb-3" key={viewName}>
-                        <ViewPanel
-                            key={viewName}
-                            schema={schema}
-                            viewName={viewName}
-                        />
-                    </Col>
-                )
-            });
-        }
-        else {
+    if (isLoaded) {
+        const viewPanels = Object.keys(schema.view).map(viewName => {
             return (
-                <Col className="mt-3 ms-3">
-                    <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
+                <Col md={6} className="mb-3" key={viewName}>
+                    <ViewPanel
+                        key={viewName}
+                        schema={schema}
+                        viewName={viewName}
+                    />
                 </Col>
             )
-        }
+        });
+        return (
+            <Container fluid className="mt-3">
+                <Row>
+                    {viewPanels}
+                </Row>
+            </Container>
+        )
     }
     return (
-        <Container fluid className="mt-3">
-            <Row>
-                {viewPanels}
-            </Row>
-        </Container>
+        <Col className="mt-3 ms-3">
+            <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
+        </Col>
     )
 }
 
