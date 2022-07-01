@@ -1,7 +1,9 @@
 # reactapp
 Test react app
 
+```bash
 $ npm install
 $ npm start
+```
 
-visit http://v.radia.run:3000/
+then visit http://v.radia.run:3000/
