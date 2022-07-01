@@ -13,7 +13,7 @@ then visit http://v.radia.run:3000/
 
 Derived from https://github.com/radiasoft/reactapp/tree/garsuga
 
-Proof of concept using raw React + Redux for the form and model state. App has two different views over the same "dog" model to test single source field updaes. 
+Proof of concept using raw React + Redux for the form and model state. App has two different views over the same "dog" model to test single source field updates. 
 
 Interesting parts:
 
