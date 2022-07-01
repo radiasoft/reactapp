@@ -13,12 +13,15 @@ then visit http://v.radia.run:3000/
 
 Derived from https://github.com/radiasoft/reactapp/tree/garsuga
 
-Proof of concept using raw React + Redux for the form and model state.
+Proof of concept using raw React + Redux for the form and model state. App has two different views over the same "dog" model to test single source field updaes. 
 
 Interesting parts:
 
 types.js which has a type factory based on the schema name. Creates a object which can validate and provide a UI component for editing. Apps can register arbiratry type classes.
+https://github.com/radiasoft/reactapp/blob/moellep/src/myapp/types.js
 
 myapp.scss customize bootstrap using SASS variables and css overrides
+https://github.com/radiasoft/reactapp/blob/moellep/src/myapp/myapp.scss
 
-app.js Rough React parts, using react-bootstrap with fontawesome icons.
+app.js Rough React parts, using react-bootstrap with fontawesome icons. (All of the hard parts done by @garsuga)
+https://github.com/radiasoft/reactapp/blob/moellep/src/myapp/app.js
