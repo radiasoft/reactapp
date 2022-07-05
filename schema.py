@@ -10,11 +10,20 @@ class SRSchema(PKDict):
         self.models = PKDict()
         self.views = PKDict()
 
+    def to_json(self):
+        pass
+
 
 class PKType():
     def validate(self, val):
         # require override?
         #assert 0, 'subclass must override validate()'
+        return val
+
+
+class PKBoolean(PKType):
+    def validate(self, val):
+        assert isinstance(val, bool)
         return val
 
 

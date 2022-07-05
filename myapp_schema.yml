@@ -1,0 +1,36 @@
+models:
+    dog:
+      breed:
+        PKString:
+            value:
+      gender:
+        Gender:
+          value: male
+      height:
+        PKRangedFloat:
+          min_val: 0
+          units: m
+          value: 0.5
+      weight:
+        PKRangedFloat:
+          min_val: 0
+          units: lb
+          value: 60.5
+      disposition:
+        DogDisposition:
+          value: friendly
+      favoriteTreat:
+        PKString:
+            value: 
+types:
+  Gender:
+    type: PKChoices
+    values:
+      - male
+      - female
+  DogDisposition:
+    type: PKChoices
+    values:
+      - aggressive
+      - friendly
+      - submissive

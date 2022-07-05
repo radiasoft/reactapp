@@ -7,8 +7,8 @@ class MyAppSchema(schema.SRSchema):
         super(MyAppSchema, self).__init__(**kwargs)
 
         self.types.update(
-            Gender=schema.PKChoices(['male', 'female',]),
-            DogDisposition=schema.PKChoices(['aggressive', 'friendly', 'submissive',])
+            Gender=schema.PKChoices(('male', 'female',)),
+            DogDisposition=schema.PKChoices(('aggressive', 'friendly', 'submissive',))
         )
 
         self.models.update(
@@ -17,7 +17,7 @@ class MyAppSchema(schema.SRSchema):
                 gender=schema.SRFieldDefinition(self.types.Gender, 'male'),
                 height=schema.SRFieldDefinition(schema.PKRangedFloat(min_val=0), 0.5, units='m'),
                 weight=schema.SRFieldDefinition(schema.PKRangedFloat(min_val=0), 60.5, units='lb'),
-                disposition=schema.SRFieldDefinition(schema.PKChoices(['aggressive', 'friendly', 'submissive',]), 'friendly'),
+                disposition=schema.SRFieldDefinition(self.types.DogDisposition, 'friendly'),
                 favoriteTreat=schema.SRFieldDefinition(schema.PKString(), ''),
             ),
         )
