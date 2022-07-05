@@ -1,36 +1,12 @@
 models:
     dog:
-      breed:
-        PKString:
-            value:
-      gender:
-        Gender:
-          value: male
-      height:
-        PKRangedFloat:
-          min_val: 0
-          units: m
-          value: 0.5
-      weight:
-        PKRangedFloat:
-          min_val: 0
-          units: lb
-          value: 60.5
-      disposition:
-        DogDisposition:
-          value: friendly
-      favoriteTreat:
-        PKString:
-            value: 
+      breed: PKString("")
+      gender: Gender("male")
+      height: PKRangedFloat(0.5, min_val=0, units="m")
+      weight: PKRangedFloat(60.5, min_val=0, units="lb")
+      disposition: DogDisposition("friendly")
+      favoriteTreat: PKString("")
+
 types:
-  Gender:
-    type: PKChoices
-    values:
-      - male
-      - female
-  DogDisposition:
-    type: PKChoices
-    values:
-      - aggressive
-      - friendly
-      - submissive
+  Gender: PKChoices(("male", "female",))
+  DogDisposition: PKChoices(("aggressive", "friendly", "submissive",))
