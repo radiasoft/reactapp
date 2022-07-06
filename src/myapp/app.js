@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useState } from "react";
 import { Form, Modal, Button } from "react-bootstrap";
 import { combineReducers, configureStore, createSlice } from "@reduxjs/toolkit";
 import { bakeEnums, globalTypes } from "./types";
@@ -311,9 +311,11 @@ const ViewPanelInner = (props) => {
                 <Modal.Body>
                     <SchemaView key={viewInfo.viewName} subviewName={'advanced'} {...passedProps}></SchemaView>
                 </Modal.Body>
-                {dirty && <Modal.Footer>
-                    {actionButtons}
-                </Modal.Footer>}
+                {dirty && 
+                    <Modal.Footer>
+                        {actionButtons}
+                    </Modal.Footer>
+                }
             </Modal>
             {dirty && actionButtons}
         </Panel>

@@ -5,12 +5,14 @@ import reportWebVitals from './reportWebVitals';
 import { BrowserRouter } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.css';
 import MyAppAppRoot from './myapp/myapp';
+import { Visuals } from './myapp/visual';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
     <BrowserRouter>
       <MyAppAppRoot />
+      <Visuals width="150" imageWidth="500" imageHeight="500" scrollFactor=".002"/>
     </BrowserRouter>
 );
 
