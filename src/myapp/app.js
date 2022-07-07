@@ -1,5 +1,5 @@
 // import {React}
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Button, Card, Col, Container, Form, Modal, OverlayTrigger, Row, Tooltip } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
 import { Types } from "./types";
@@ -12,6 +12,7 @@ import {
     loadModelData,
     selectIsLoaded,
     updateModel,
+    selectModels,
 } from "./models";
 import {
     formStatesSlice,
@@ -38,6 +39,32 @@ const useBlockingEffect = (callback, reqs) => {
         }
     }, [lock, ...(reqs || [])])
     return () => updateLock(false);
+}
+
+const useSetup = (shouldRun, callback) => {
+    const [hasSetup, updateHasSetup] = useState(false);
+    const [callbackStarted] = useState({value: false});
+    useEffect(() => {
+        if(shouldRun && !hasSetup && !callbackStarted.value) {
+            callbackStarted.value = true;
+            callback();
+        }
+    });
+    const finish = () => {
+        updateHasSetup(true);
+    }
+    return [hasSetup, finish];
+}
+
+const useRenderCount = (name) => {
+    const renderCount = useRef(0);
+    const domRenderCount = useRef(0);
+    ++renderCount.current;
+    useEffect(() => {
+        ++domRenderCount.current;
+        console.log(`DOM render ${name} ${domRenderCount.current} (${renderCount.current})`);
+    })
+    console.log(`Render ${name} ${(++renderCount.current)}`);
 }
 
 /**
@@ -133,32 +160,10 @@ const LabelTooltip = (props) => {
     );
 }
 
-const SchemaView = (props) => {
-    const {viewInfo: {view, viewName, modelSchema, modelName}, types, subviewName} = props;
-    const fieldControllers = createFieldControllersForView(
-        {
-            viewName,
-            view,
-            types,
-            modelSchema,
-        },
-        useSelector(selectFormState(modelName)),
-    );
-    const dispatch = useDispatch();
-    // build view binding inputs to field controllers purely
-    const fieldElements = mapProperties(fieldControllers, (fieldName, fieldController) => {
+const createInputElementsForFieldControllers = (fieldControllers, onFieldUpdated) => {
+    return Object.entries(fieldControllers).map(([fieldName, fieldController]) => {
         const onChange = (event) => {
-            if (fieldController.onUIDataChanged(event)) {
-                dispatch(updateFormFieldState({
-                    name: modelName,
-                    field: fieldName,
-                    value: {
-                        value: fieldController.rawValue,
-                        valid: fieldController.valid,
-                        touched: fieldController.touched
-                    },
-                }));
-            }
+            onFieldUpdated(fieldName, fieldController, event);
         }
         return (
             <Form.Group size="sm" as={Row} className="mb-2" key={fieldName}>
@@ -175,11 +180,12 @@ const SchemaView = (props) => {
             </Form.Group>
         )
     })
-    const inputElementsOfSubview = (subview) => subview.map(fieldName => fieldElements[fieldName]);
-    const subview = view[subviewName];
+}
+
+const EditorForm = (props) => {
     return (
-        <Form key={viewName}>
-            {subview && inputElementsOfSubview(subview)}
+        <Form>
+            {props.children}
         </Form>
     );
 }
@@ -194,50 +200,23 @@ const ViewPanelActionButtons = (props) => {
     )
 }
 
-const ViewPanel = (props) => {
-    const {viewName, schema} = props;
-    const view = schema.view[viewName];
-    const modelName = view.model || viewName;
-    const modelSchema = schema.model[modelName];
-    const viewInfo = {
-        modelName,
-        modelSchema,
-        view,
-        viewName: viewName
-    }
-    const types = new Types(schema);
-    const dispatch = useDispatch();
-    const model = useSelector(selectModel(viewInfo.modelName));
-    useEffect(() => {
-        dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
-    }, []);
-    const formState = useSelector(selectFormState(viewInfo.modelName));
-    return (formState &&
-        <ViewPanelInner
-            {...props}
-            types={types}
-            viewInfo={viewInfo}
-        >
-        </ViewPanelInner>
-    )
-}
+const EditorPanel = (props) => {
+    useRenderCount("ViewPanel");
+    const {viewInfo: {view, viewName, modelSchema, modelName}, types} = props;
+    
+    const formState = useSelector(selectFormState(modelName));
+    const model = useSelector(selectModel(modelName));
 
-const ViewPanelInner = (props) => {
-    const { viewInfo, types } = props;
+    const dispatch = useDispatch();
+
     const [advancedModalShown, updateAdvancedModalShown] = useState(false);
     const [panelBodyShown, updatePanelBodyShown] = useState(true);
-    const dispatch = useDispatch();
-    const formState = useSelector(selectFormState(viewInfo.modelName));
-    const model = useSelector(selectModel(viewInfo.modelName));
 
-    // in here is where all of the checking for the form state in store and creation of save/cancel buttons will be
-    // NOT IN SchemaView!!!
-    // SchemaView is only for modifying the given 'store' using a form
 
     const isModelDirty = () => Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
     const isModelValid = () => !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false);
     const cancelChanges = () => {
-        dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(model, viewInfo.modelSchema, types) }));
+        dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
         updateAdvancedModalShown(false);
     }
     const saveModel = () => {
@@ -246,10 +225,20 @@ const ViewPanelInner = (props) => {
         for (const k in model) {
             m[k] = formState[k] ? formState[k].value : model[k];
         }
-        dispatch(updateModel({ name: viewInfo.modelName, value: m }));
-        dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(m, viewInfo.modelSchema, types) }));
+        dispatch(updateModel({ name: modelName, value: m }));
+        dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema, types) }));
         updateAdvancedModalShown(false);
     }
+
+    const fieldControllers = createFieldControllersForView(
+        {
+            viewName,
+            view,
+            types,
+            modelSchema,
+        },
+        useSelector(selectFormState(modelName)),
+    );
 
     const headerButtons = (
         <Fragment>
@@ -259,16 +248,37 @@ const ViewPanelInner = (props) => {
     );
     const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={cancelChanges}></ViewPanelActionButtons>
     const dirty = isModelDirty();
+
+    const onFieldUpdated = (fieldName, fieldController, event) => {
+        if (fieldController.onUIDataChanged(event)) {
+            dispatch(updateFormFieldState({
+                name: modelName,
+                field: fieldName,
+                value: {
+                    value: fieldController.rawValue,
+                    valid: fieldController.valid,
+                    touched: fieldController.touched
+                },
+            }));
+        }
+    }
+
+    const createFieldElementsForSubview = (subviewName) => createInputElementsForFieldControllers(Object.fromEntries((view[subviewName] || []).map(fieldName => [fieldName, fieldControllers[fieldName]])), onFieldUpdated);
+
     return (
-        <Panel title={viewInfo.view.title || viewInfo.viewName} buttons={headerButtons} viewInfo={viewInfo} panelBodyShown={panelBodyShown}>
-            <SchemaView key={viewInfo.viewName} subviewName={'basic'} {...props}></SchemaView>
+        <Panel title={view.title || viewName} buttons={headerButtons} panelBodyShown={panelBodyShown}>
+            <EditorForm key={viewName}>
+                {createFieldElementsForSubview('basic')}
+            </EditorForm>
 
             <Modal show={advancedModalShown} onHide={() => cancelChanges()} size="lg">
                 <Modal.Header className="lead bg-info bg-opacity-25">
-                    { viewInfo.view.title }
+                    { view.title }
                 </Modal.Header>
                 <Modal.Body>
-                    <SchemaView key={viewInfo.viewName} subviewName={'advanced'} {...props}></SchemaView>
+                    <EditorForm key={viewName}>
+                        {createFieldElementsForSubview('advanced')}
+                    </EditorForm>
                     {dirty &&
                      <Fragment>
                          {actionButtons}
@@ -318,12 +328,13 @@ const AppRoot = (props) => {
             [formStatesSlice.name]: formStatesSlice.reducer,
         },
     });
-    useBlockingEffect(() => {
-        fetch(props.schemaPath).then(resp => resp.text().then(text => {
+    const [hasSchema, finishInitSchema] = useSetup(true,
+        () => fetch(props.schemaPath).then(resp => resp.text().then(text => {
             updateSchema(JSON.parse(text));
+            finishInitSchema();
         }))
-    })
-    return (schema &&
+    )
+    return (hasSchema &&
         <Provider store={formStateStore}>
             <AppRootInner
                 {...props}
@@ -335,16 +346,40 @@ const AppRoot = (props) => {
 }
 
 const AppRootInner = ({schema}) => {
+    useRenderCount("AppRootInner");
     const isLoaded = useSelector(selectIsLoaded);
     const dispatch = useDispatch();
-    if (isLoaded) {
-        const viewPanels = Object.keys(schema.view).map(viewName => {
+    const types = new Types(schema);
+
+    const viewInfos = mapProperties(schema.view, (viewName, view) => {
+        const modelName = view.model || viewName;
+        const modelSchema = schema.model[modelName];
+        return {
+            modelName,
+            modelSchema,
+            view,
+            viewName: viewName
+        }
+    })
+
+    const models = useSelector(selectModels);
+
+    // one time initialize form state for each view on model
+    const [hasInitFormState, finishInitFormState] = useSetup(isLoaded, () => {
+        for(const viewInfo of Object.values(viewInfos)) {
+            dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
+        }
+        finishInitFormState();
+    })
+    
+    if (isLoaded && hasInitFormState) {
+        const viewPanels = Object.keys(viewInfos).map(viewName => {
             return (
                 <Col md={6} className="mb-3" key={viewName}>
-                    <ViewPanel
+                    <EditorPanel
                         key={viewName}
-                        schema={schema}
-                        viewName={viewName}
+                        viewInfo={viewInfos[viewName]}
+                        types={types}
                     />
                 </Col>
             )

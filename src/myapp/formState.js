@@ -1,17 +1,15 @@
-// import { React }
 import { createSlice } from '@reduxjs/toolkit';
-//import { cloneDeep } from 'lodash';
 
 export const formStatesSlice = createSlice({
     name: 'formStates',
     initialState: {},
     reducers: {
-        updateFormState: (state, action) => {
-            //state[action.payload.name] = cloneDeep(action.payload.value);
-            state[action.payload.name] = action.payload.value;
+        updateFormState: (state, {payload: {name, value}}) => {
+            state[name] = value;
         },
-        updateFormFieldState: (state, action) => {
-            state[action.payload.name][action.payload.field] = action.payload.value;
+        updateFormFieldState: (state, {payload: {name, value, field}}) => {
+            state[name] = {...state[name]};
+            state[name][field] = value;
         },
     }
 });

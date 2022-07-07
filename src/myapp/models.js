@@ -45,16 +45,17 @@ export const modelsSlice = createSlice({
         models: {},
     },
     reducers: {
-        updateModel: (state, action) => {
-            console.log('updateModel:', action.payload);
+        updateModel: (state, {payload: {name, value}}) => {
             //state.models[action.payload.name] = cloneDeep(action.payload.value);
-            state.models[action.payload.name] = action.payload.value;
+            state.models = {...state.models};
+            state.models[name] = {...state.models[name]};
+            state.models[name] = value;
         },
     },
     extraReducers: (builder) => {
         builder
-            .addCase(loadModelData.fulfilled, (state, action) => {
-                state.models = action.payload;
+            .addCase(loadModelData.fulfilled, (state, {payload}) => {
+                state.models = payload;
                 state.isLoaded = true;
             });
     },
@@ -63,15 +64,14 @@ export const modelsSlice = createSlice({
 //export const { cancelChanges, saveChanges, updateField } = modelsSlice.actions;
 export const { updateModel } = modelsSlice.actions;
 
-const modelSelectorCache = {};
-
 export const selectIsLoaded = (state) => {
     return state[modelsSlice.name].isLoaded;
 }
 
+export const selectModels = state => {
+    return state[modelsSlice.name].models;
+}
+
 export const selectModel = name => {
-    if (! modelSelectorCache[name]) {
-        modelSelectorCache[name] = state => state[modelsSlice.name].models[name];
-    }
-    return modelSelectorCache[name];
+    return state => state[modelsSlice.name].models[name];
 }
