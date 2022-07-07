@@ -160,24 +160,33 @@ const LabelTooltip = (props) => {
     );
 }
 
+const FormField = (props) => {
+    const {label, tooltip} = props;
+    return (
+        <Form.Group size="sm" as={Row} className="mb-2">
+            <Form.Label column="sm" sm={5} className="text-end">
+                {label}
+                {tooltip &&
+                    <LabelTooltip text={tooltip} />
+                }
+            </Form.Label>
+            {props.children}
+        </Form.Group>
+    )
+}
+
 const createInputElementsForFieldControllers = (fieldControllers, onFieldUpdated) => {
     return Object.entries(fieldControllers).map(([fieldName, fieldController]) => {
         const onChange = (event) => {
             onFieldUpdated(fieldName, fieldController, event);
         }
         return (
-            <Form.Group size="sm" as={Row} className="mb-2" key={fieldName}>
-                <Form.Label column="sm" sm={5} className="text-end">
-                    {fieldController.displayName}
-                    {fieldController.description &&
-                     <LabelTooltip text={fieldController.description} />
-                    }
-                </Form.Label>
+            <FormField label={fieldController.displayName} tooltip={fieldController.description} key={fieldName}>
                 <FieldControllerInput
                     fieldController={fieldController}
                     onChange={onChange}
                 />
-            </Form.Group>
+            </FormField>
         )
     })
 }
