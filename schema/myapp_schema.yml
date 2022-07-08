@@ -1,0 +1,12 @@
+models:
+    dog:
+      breed: schema.PKString("")
+      gender: self.Gender("male")
+      height: schema.PKRangedFloat(0.5, min_val=0, units="m")
+      weight: schema.PKRangedFloat(60.5, min_val=0, units="lb")
+      disposition: self.DogDisposition("friendly")
+      favoriteTreat: schema.PKString("")
+
+types:
+  Gender: schema.PKChoices(("male", "female",))
+  DogDisposition: schema.PKChoices(("aggressive", "friendly", "submissive",))

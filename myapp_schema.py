@@ -1,5 +1,8 @@
 import schema
 from pykern.pkcollections import PKDict
+from pykern.pkdebug import pkdlog, pkdp
+from pykern.pkconfig import STRING_TYPES
+
 
 class MyAppSchema(schema.SRSchema):
 

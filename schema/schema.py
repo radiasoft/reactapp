@@ -1,7 +1,7 @@
 from pykern.pkcollections import PKDict
 from pykern.pkdebug import pkdp
 from pykern import pkconfig
-
+from pykern.pkconfig import STRING_TYPES
 
 class SRSchema(PKDict):
     def __init__(self, **kwargs):

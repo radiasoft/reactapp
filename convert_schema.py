@@ -3,6 +3,7 @@ import json
 from pykern import pkcollections
 from pykern.pkdebug import pkdlog, pkdp
 from pykern.pkcollections import PKDict
+from pykern.pkconfig import STRING_TYPES
 
 _ENUM_INDEX_TO_PROPERTY = {
     0: 'value',
