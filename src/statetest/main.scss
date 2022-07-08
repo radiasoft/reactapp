@@ -1,0 +1,13 @@
+.parent {
+    border: 1px solid red;
+    margin: 15px;
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+.child {
+    border: 1px solid blue;
+    margin: 15px;
+    display: flex;
+    flex-flow: column nowrap;
+}
