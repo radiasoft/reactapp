@@ -1,49 +1,31 @@
+
+$primary: darken(#428bca, 6.5%);
+$success: #5cb85c;
+$info: #5bc0de;
+$warning: #f0ad4e;
+$danger: #d9534f;
+
+$form-label-font-weight: 700;
+$form-feedback-icon-invalid: none;
+
+$tooltip-max-width: 350px;
+$tooltip-color: black;
+$tooltip-opacity: 1;
+
 @import "~bootstrap/scss/bootstrap";
 
-$enable-shadows: true;
-
-.sr-simulation-outer {
-    margin: 30px;
-    display: flex;
-    flex-flow: row wrap;
+a {
+  cursor: pointer;
 }
 
-.sr-panel {
-    @extend .shadow;
-    border-radius: 10px;
-    padding: 15px;
-    margin: 10px;
-    display: flex;
-    flex-flow: column nowrap;
-    width: 500px;
+.form-control.is-invalid {
+  background-color: #fad8de;
+  padding-right: 0.75rem;
 }
 
-.sr-panel * {
-    width: 100%;
-}
-
-.sr-panel-header {
-    display: flex;
-    flex-flow: row nowrap;
-    justify-content: space-between;
-}
-
-.sr-panel-title {
-    justify-self: flex-start;
-}
-
-.sr-panel-buttons {
-    justify-self: flex-end;
-}
-
-.sr-panel-view-action-buttons {
-    display: flex;
-    flex-flow: row nowrap;
-    padding: 10px;
-    justify-content: flex-end;
-}
-
-.sr-panel-view-action-button {
-    width: 150px;
-    margin-left: 15px;
+/* couldn't get a border via sass on standard bootstrap tooltip */
+.tooltip-inner {
+  background-color: #f9f9f9;
+  color: black;
+  border: 1px solid black;
 }
