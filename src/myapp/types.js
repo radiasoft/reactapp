@@ -74,7 +74,7 @@ export class rsFloat extends rsNumber {
     }
 }
 
-const globalTypes = {
+export const globalTypes = {
     'OptionalString': new rsString({
         isRequired: false,
     }),
@@ -82,14 +82,7 @@ const globalTypes = {
     'Float': new rsFloat({}),
 }
 
-const enumTypeOf = (enumSchema) => {
-    const allowedValues = enumSchema.map(v => {
-        const [value, displayName] = v;
-        return {
-            value,
-            displayName
-        }
-    });
+export function enumTypeOf(allowedValues) {
     return new (class extends rsType {
         uiComponent(props) {
             const options = allowedValues.map(allowedValue => (
@@ -103,26 +96,4 @@ const enumTypeOf = (enumSchema) => {
             return this.hasValue(value) && allowedValues.filter(av => av.value == value).length > 0;
         };
     })({});
-}
-
-export class Types {
-    constructor(schema) {
-        this.schema = schema;
-    }
-    fieldTypeFromName = (name) => {
-        if (! globalTypes[name]) {
-            if (! this.schema.enum[name]) {
-                throw Error('unknown type: ' + name);
-            }
-            this.registerFieldType(name, enumTypeOf(this.schema.enum[name]));
-        }
-        return globalTypes[name];
-    }
-    // allow apps to register arbitrary types, ex. elegant's Float6StringArray
-    registerFieldType = (name, fieldType) => {
-        if (globalTypes[name]) {
-            throw Error('type already registered:' + name);
-        }
-        globalTypes[name] = fieldType;
-    }
 }

@@ -2,7 +2,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Button, Card, Col, Container, Form, Modal, OverlayTrigger, Row, Tooltip } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
-import { Types } from "./types";
+import { enumTypeOf, globalTypes, Types } from "./types";
 import { useDispatch, Provider, useSelector } from "react-redux";
 import * as Icon from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -82,65 +82,13 @@ const mapProperties = (obj, mapFunc) => {
 }
 
 function FieldControllerInput(props) {
-    const {fieldController, onChange, ...otherProps} = props;
-    return fieldController.type.componentFactory({
-        valid: fieldController.valid,
-        value: fieldController.rawValue,
-        touched: fieldController.touched,
+    let {type, fieldState: {value, valid, touched}, onChange, ...otherProps} = props;
+    return type.componentFactory({
+        valid,
+        value,
+        touched,
         onChange
     })(otherProps);
-}
-
-class FieldController {
-    /**
-     * @param { {
-     *  displayName: string,
-     *  typeName: string,
-     *  description: string,
-     *  type: *
-     * } }
-     */
-    constructor({ displayName, typeName, description, type }, {value, valid, touched}) {
-        this.rawValue = (value !== undefined && value !== null) ? value : ""
-        this.displayName = displayName;
-        this.typeName = typeName;
-        this.touched = touched;
-        this.description = description;
-        this.type = type;
-        this.valid = valid;
-    }
-
-    onUIDataChanged(event) {
-        const nextValue = event.target.value;
-        if(this.rawValue != nextValue) {
-            this.rawValue = nextValue;
-            this.touched = true;
-            this.valid = this.type.validate(nextValue);
-            return true;
-        }
-        return false;
-    }
-}
-
-/**
- * @param {{
- *  viewName: string,
- *  view: { title: string?, basic: [string], advanced: [string] },
- *  types: {[typeName: string]: *},
- *  model: {[modelName: string]: {[fieldName:string]: [*]}}
- * }}
- * @returns {{ [fieldName: string]: FieldController }}
- */
-const createFieldControllersForView = ({viewName, view, types, modelSchema}, formState) => {
-    return mapProperties(modelSchema, (fieldName, fieldSchema) => {
-        const [displayName, typeName, , description] = fieldSchema;
-        return new FieldController({
-            displayName,
-            typeName,
-            description,
-            type: types.fieldTypeFromName(typeName),
-        }, formState[fieldName]);
-    });
 }
 
 const LabelTooltip = (props) => {
@@ -175,22 +123,6 @@ const FormField = (props) => {
     )
 }
 
-const createInputElementsForFieldControllers = (fieldControllers, onFieldUpdated) => {
-    return Object.entries(fieldControllers).map(([fieldName, fieldController]) => {
-        const onChange = (event) => {
-            onFieldUpdated(fieldName, fieldController, event);
-        }
-        return (
-            <FormField label={fieldController.displayName} tooltip={fieldController.description} key={fieldName}>
-                <FieldControllerInput
-                    fieldController={fieldController}
-                    onChange={onChange}
-                />
-            </FormField>
-        )
-    })
-}
-
 const EditorForm = (props) => {
     return (
         <Form>
@@ -210,7 +142,7 @@ const ViewPanelActionButtons = (props) => {
 }
 
 const EditorPanel = (props) => {
-    useRenderCount("ViewPanel");
+    //useRenderCount("ViewPanel");
     const {viewInfo: {view, viewName, modelSchema, modelName}, types} = props;
     
     const formState = useSelector(selectFormState(modelName));
@@ -239,15 +171,17 @@ const EditorPanel = (props) => {
         updateAdvancedModalShown(false);
     }
 
-    const fieldControllers = createFieldControllersForView(
-        {
-            viewName,
-            view,
-            types,
-            modelSchema,
-        },
-        useSelector(selectFormState(modelName)),
-    );
+    const modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
+        let [displayName, typeName, defaultValue, description] = fieldSchema;
+        let type = types[typeName];
+        return {
+            displayName,
+            typeName,
+            defaultValue,
+            description,
+            type
+        }
+    });
 
     const headerButtons = (
         <Fragment>
@@ -258,21 +192,39 @@ const EditorPanel = (props) => {
     const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={cancelChanges}></ViewPanelActionButtons>
     const dirty = isModelDirty();
 
-    const onFieldUpdated = (fieldName, fieldController, event) => {
-        if (fieldController.onUIDataChanged(event)) {
+    const onFieldUpdated = (fieldName, fieldState, event) => {
+        let nextValue = event.target.value;
+        if (fieldState.value != nextValue) {
             dispatch(updateFormFieldState({
                 name: modelName,
                 field: fieldName,
                 value: {
-                    value: fieldController.rawValue,
-                    valid: fieldController.valid,
-                    touched: fieldController.touched
+                    value: nextValue,
+                    valid: modelFields[fieldName].type.validate(nextValue),
+                    touched: true
                 },
             }));
         }
     }
 
-    const createFieldElementsForSubview = (subviewName) => createInputElementsForFieldControllers(Object.fromEntries((view[subviewName] || []).map(fieldName => [fieldName, fieldControllers[fieldName]])), onFieldUpdated);
+    const createFieldElementsForSubview = (subviewName) => {
+        return (view[subviewName] || []).map(fieldName => {
+            let fieldState = formState[fieldName];
+            let modelField = modelFields[fieldName];
+            const onChange = (event) => {
+                onFieldUpdated(fieldName, fieldState, event);
+            }
+            return (
+                <FormField label={modelField.displayName} tooltip={modelField.description} key={fieldName}>
+                    <FieldControllerInput
+                        fieldState={fieldState}
+                        type={modelField.type}
+                        onChange={onChange}
+                    />
+                </FormField>
+            )
+        })
+    }
 
     return (
         <Panel title={view.title || viewName} buttons={headerButtons} panelBodyShown={panelBodyShown}>
@@ -320,7 +272,7 @@ const Panel = (props) => {
 }
 
 const formStateFromModel = (model, modelSchema, types) => mapProperties(modelSchema, (fieldName, [ , typeName]) => {
-    const type = types.fieldTypeFromName(typeName);
+    const type = types[typeName];
     const valid = type.validate(model[fieldName])
     return {
         valid: valid,
@@ -355,10 +307,24 @@ const AppRoot = (props) => {
 }
 
 const AppRootInner = ({schema}) => {
-    useRenderCount("AppRootInner");
+    //useRenderCount("AppRootInner");
     const isLoaded = useSelector(selectIsLoaded);
     const dispatch = useDispatch();
-    const types = new Types(schema);
+    const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
+        return enumTypeOf(
+            enumSchema.map(v => {
+                const [value, displayName] = v;
+                return {
+                    value,
+                    displayName
+                }
+            })
+        );
+    });
+    const types = {
+        ...globalTypes,
+        ...schemaTypes
+    }
 
     const viewInfos = mapProperties(schema.view, (viewName, view) => {
         const modelName = view.model || viewName;
