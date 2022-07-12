@@ -116,8 +116,9 @@ function EditorPanel2(props) {
     )
 }
 
+// TODO: build this call from schema
 const MyAppEditorPanel = new ComponentBuilder(EditorPanel2)
-    .needsDispatch('dispatch')
+    .withDispatch('dispatch')
     .withSelector('model', ({ viewInfo: { modelName } }) => selectModel(modelName))
     .withSelector('formState', ({ viewInfo: { modelName } }) => selectFormState(modelName))
     .withValues(({ dispatch, formState, model, viewInfo: { viewName, view, modelName, modelSchema }, types }) => {
@@ -194,117 +195,6 @@ const MyAppEditorPanel = new ComponentBuilder(EditorPanel2)
         }
     })
     .toComponent()
-
-const EditorPanel = (props) => {
-    //useRenderCount("ViewPanel");
-    //const {viewInfo: {view, viewName, modelSchema, modelName}, types} = props;
-    
-    //const formState = useSelector(selectFormState(modelName));
-    //const model = useSelector(selectModel(modelName));
-
-    //const dispatch = useDispatch();
-
-    //const [advancedModalShown, updateAdvancedModalShown] = useState(false);
-    //const [panelBodyShown, updatePanelBodyShown] = useState(true);
-
-
-    //const isModelDirty = () => Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
-    //const isModelValid = () => !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false);
-    /*const cancelChanges = () => {
-        dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
-        updateAdvancedModalShown(false);
-    }
-    const saveModel = () => {
-        console.log("Congrats, you saved a model:", formState);
-        const m = {};
-        for (const k in model) {
-            m[k] = formState[k] ? formState[k].value : model[k];
-        }
-        dispatch(updateModel({ name: modelName, value: m }));
-        dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema, types) }));
-        updateAdvancedModalShown(false);
-    }*/
-
-    /*const modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
-        let [displayName, typeName, defaultValue, description] = fieldSchema;
-        let type = types[typeName];
-        return {
-            displayName,
-            typeName,
-            defaultValue,
-            description,
-            type
-        }
-    });*/
-
-    /*const headerButtons = (
-        <Fragment>
-            <a className="ms-2" onClick={() => updateAdvancedModalShown(true)}><FontAwesomeIcon icon={Icon.faPencil} fixedWidth /></a>
-            <a className="ms-2" onClick={() => updatePanelBodyShown(! panelBodyShown)}><FontAwesomeIcon icon={panelBodyShown ? Icon.faChevronUp : Icon.faChevronDown} fixedWidth /></a>
-        </Fragment>
-    );*/
-    //const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={cancelChanges}></ViewPanelActionButtons>
-    //const dirty = isModelDirty();
-
-    /*const onFieldUpdated = (fieldName, fieldState, event) => {
-        let nextValue = event.target.value;
-        if (fieldState.value != nextValue) {
-            dispatch(updateFormFieldState({
-                name: modelName,
-                field: fieldName,
-                value: {
-                    value: nextValue,
-                    valid: modelFields[fieldName].type.validate(nextValue),
-                    touched: true
-                },
-            }));
-        }
-    }
-
-    const createFieldElementsForSubview = (subviewName) => {
-        return (view[subviewName] || []).map(fieldName => {
-            let fieldState = formState[fieldName];
-            let modelField = modelFields[fieldName];
-            const onChange = (event) => {
-                onFieldUpdated(fieldName, fieldState, event);
-            }
-            return (
-                <FormField label={modelField.displayName} tooltip={modelField.description} key={fieldName}>
-                    <FieldControllerInput
-                        fieldState={fieldState}
-                        type={modelField.type}
-                        onChange={onChange}
-                    />
-                </FormField>
-            )
-        })
-    }*/
-
-    /*return (
-        <Panel title={view.title || viewName} buttons={headerButtons} panelBodyShown={panelBodyShown}>
-            <EditorForm key={viewName}>
-                {createFieldElementsForSubview('basic')}
-            </EditorForm>
-
-            <Modal show={advancedModalShown} onHide={() => cancelChanges()} size="lg">
-                <Modal.Header className="lead bg-info bg-opacity-25">
-                    { view.title }
-                </Modal.Header>
-                <Modal.Body>
-                    <EditorForm key={viewName}>
-                        {createFieldElementsForSubview('advanced')}
-                    </EditorForm>
-                    {dirty &&
-                     <Fragment>
-                         {actionButtons}
-                     </Fragment>
-                    }
-                </Modal.Body>
-            </Modal>
-            {dirty && actionButtons}
-        </Panel>
-    )*/
-}
 
 const Panel = (props) => {
     const {title, buttons, viewInfo, panelBodyShown, ...otherProps} = props;

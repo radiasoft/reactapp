@@ -1,22 +1,25 @@
 import { useContext } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-// TODO: maintain call order
+// TODO: separate upstream props from generated values?
 export class ComponentBuilder {
     constructor(componentFunction) {
         this.componentFunction = componentFunction;
-        this.hookDependencies = [];
-        this.valueFuncs = [];
-        this.dispatch = undefined;
+        this.propMutations = [];
     }
     
-    needsDispatch(propName) {
-        this.dispatch = propName;
+    withDispatch(propName) {
+        this.propMutations.push((props) => {
+            props[propName] = useDispatch();
+        })
         return this;
     }
 
     withValues(valuesFn) {
-        this.valueFuncs.push(valuesFn);
+        this.propMutations.push((props) => {
+            let values = valuesFn(props);
+            Object.assign(props, values);
+        })
         return this;
     }
 
@@ -29,19 +32,17 @@ export class ComponentBuilder {
     }
 
     withContext(propName, contextFn) {
-        this.hookDependencies.push({
-            hookFn: useContext,
-            propName,
-            evaluator: contextFn
+        this.propMutations.push((props) => {
+            let _temp = useContext;
+            props[propName] = _temp(contextFn(props));
         })
         return this;
     }   
 
     withSelector(propName, selectorFn) {
-        this.hookDependencies.push({
-            hookFn: useSelector,
-            propName,
-            evaluator: selectorFn
+        this.propMutations.push((props) => {
+            let _temp = useSelector;
+            props[propName] = _temp(selectorFn(props));
         })
         return this;
     }
@@ -49,24 +50,8 @@ export class ComponentBuilder {
     toComponent() {
         return (props) => {
             let newProps = {...props};
-            if(this.dispatch) {
-                let _temp = useDispatch;
-                newProps[this.dispatch] = _temp();
-            }
-            for(var dependency of this.hookDependencies) {
-                let { hookFn, propName, evaluator } = dependency;
-                if(hookFn){
-                    let hookedValue = hookFn(evaluator(newProps));
-                    newProps[propName] = hookedValue;
-                } else {
-                    throw new Error('could not parse dependency in component: ' + dependency);
-                }
-            }
-            for(var valueFunc of this.valueFuncs) {
-                let values = valueFunc(newProps);
-                for(var [ propName, value ] of Object.entries(values)) {
-                    newProps[propName] = value;
-                }
+            for(let propMutation of this.propMutations) {
+                propMutation(newProps);
             }
             let Component = this.componentFunction;
             return (
