@@ -1,11 +1,12 @@
 // import {React}
-import { Fragment, useEffect, useRef, useState } from "react";
-import { Button, Card, Col, Container, Form, Modal, OverlayTrigger, Row, Tooltip } from "react-bootstrap";
+import React, { Fragment, useContext, useState } from "react";
+import { Button, Card, Col, Container, Form, Modal, Row } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
-import { enumTypeOf, globalTypes, Types } from "./types";
+import { enumTypeOf, globalTypes } from "../types";
 import { useDispatch, Provider, useSelector } from "react-redux";
 import * as Icon from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useSetup } from "../hooks";
 import {
     modelsSlice,
     selectModel,
@@ -20,66 +21,10 @@ import {
     updateFormState,
     updateFormFieldState,
 } from "./formState";
+import { mapProperties } from '../helper'
+import { FormField } from "../components/form";
 
 import "./myapp.scss"
-
-/**
- * Implements useEffect with the ability to block until the returned callback is called. Will run the
- * callback the first time it is encountered
- * @param {() => void} callback a callback to run if this hook is not blocked
- * @param {[*]} reqs list of reqs to pass to internal useEffect
- * @returns {() => void} a callback function that causes the component to re-render and run the callback
- */
-const useBlockingEffect = (callback, reqs) => {
-    const [lock, updateLock] = useState(false);
-    useEffect(() => {
-        if(!lock) {
-            updateLock(true);
-            callback();
-        }
-    }, [lock, ...(reqs || [])])
-    return () => updateLock(false);
-}
-
-const useSetup = (shouldRun, callback) => {
-    const [hasSetup, updateHasSetup] = useState(false);
-    const [callbackStarted] = useState({value: false});
-    useEffect(() => {
-        if(shouldRun && !hasSetup && !callbackStarted.value) {
-            callbackStarted.value = true;
-            callback();
-        }
-    });
-    const finish = () => {
-        updateHasSetup(true);
-    }
-    return [hasSetup, finish];
-}
-
-const useRenderCount = (name) => {
-    const renderCount = useRef(0);
-    const domRenderCount = useRef(0);
-    ++renderCount.current;
-    useEffect(() => {
-        ++domRenderCount.current;
-        console.log(`DOM render ${name} ${domRenderCount.current} (${renderCount.current})`);
-    })
-    console.log(`Render ${name} ${(++renderCount.current)}`);
-}
-
-/**
- * Helper function to create an object of the same shape as the input by mapping property values to a new value
- * @param {{[name: string]: T}} obj
- * @param {(name: string, value: T) => *} mapFunc
- * @returns {T} An object with the same fields having mapFunc applied
- */
-const mapProperties = (obj, mapFunc) => {
-    return Object.fromEntries(
-        Object.entries(obj).map(([propName, propValue]) => {
-            return [propName, mapFunc(propName, propValue)]
-        })
-    )
-}
 
 function FieldControllerInput(props) {
     let {type, fieldState: {value, valid, touched}, onChange, ...otherProps} = props;
@@ -89,38 +34,6 @@ function FieldControllerInput(props) {
         touched,
         onChange
     })(otherProps);
-}
-
-const LabelTooltip = (props) => {
-    const renderTooltip = (childProps) => (
-        <Tooltip id="label-tooltip" {...childProps}>
-            {props.text}
-        </Tooltip>
-    );
-    return (
-        <OverlayTrigger
-            placement="bottom"
-            delay={{ show: 250, hide: 400 }}
-            overlay={renderTooltip}
-        >
-            <span> <FontAwesomeIcon icon={Icon.faInfoCircle} fixedWidth /></span>
-        </OverlayTrigger>
-    );
-}
-
-const FormField = (props) => {
-    const {label, tooltip} = props;
-    return (
-        <Form.Group size="sm" as={Row} className="mb-2">
-            <Form.Label column="sm" sm={5} className="text-end">
-                {label}
-                {tooltip &&
-                    <LabelTooltip text={tooltip} />
-                }
-            </Form.Label>
-            {props.children}
-        </Form.Group>
-    )
 }
 
 const EditorForm = (props) => {
@@ -139,6 +52,21 @@ const ViewPanelActionButtons = (props) => {
             <Button onClick={onCancel} variant="light" className="ms-1">Cancel</Button>
         </Col>
     )
+}
+
+function EditorPanel2(props) {
+    let {
+        viewInfo: {
+            view, 
+            viewName,
+            modelSchema,
+            modelName
+        },
+        types,
+        formState,
+        model,
+        
+    } = props;
 }
 
 const EditorPanel = (props) => {
