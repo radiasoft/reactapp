@@ -6,27 +6,23 @@ export class rsType {
         this.colSize = this.hasValue(colSize) ? colSize : 5;
         this.isRequired = this.hasValue(isRequired) ? isRequired : true;
     }
-    componentFactory({
-        value,
-        valid,
-        touched,
-        onChange
-    }) {
-        return (props) => {
-            return (
-                <Col sm={this.colSize}>
-                    {
-                        this.uiComponent({
-                            ...props,
-                            value: this.hasValue(value) ? value : "",
-                            isInvalid: ! valid && touched,
-                            onChange,
-                        })
-                    }
-                </Col>
-            )
-        }
+
+    component = (props) => {
+        let {value, valid, touched, onChange, ...otherProps} = props;
+        return (
+            <Col sm={this.colSize}>
+                {
+                    this.inputComponent({
+                        ...otherProps,
+                        value: this.hasValue(value) ? value : "",
+                        isInvalid: ! valid && touched,
+                        onChange,
+                    })
+                }
+            </Col>
+        )
     }
+
     dbValue(value) {
         return value;
     }
@@ -43,7 +39,7 @@ export class rsString extends rsType {
         super(props);
         this.align = "text-start";
     }
-    uiComponent(props) {
+    inputComponent(props) {
         return (
             <Form.Control size="sm" className={this.align} type="text" {...props}></Form.Control>
         )
@@ -84,7 +80,7 @@ export const globalTypes = {
 
 export function enumTypeOf(allowedValues) {
     return new (class extends rsType {
-        uiComponent(props) {
+        inputComponent(props) {
             const options = allowedValues.map(allowedValue => (
                 <option key={allowedValue.value} value={allowedValue.value}>{allowedValue.displayName}</option>
             ));

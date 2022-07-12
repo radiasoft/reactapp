@@ -25,8 +25,9 @@ import { mapProperties } from '../helper'
 import { FormField } from "../components/form";
 
 import "./myapp.scss"
+import { ComponentBuilder } from "../components/builder";
 
-function FieldControllerInput(props) {
+/*function FieldControllerInput(props) {
     let {type, fieldState: {value, valid, touched}, onChange, ...otherProps} = props;
     return type.componentFactory({
         valid,
@@ -34,7 +35,7 @@ function FieldControllerInput(props) {
         touched,
         onChange
     })(otherProps);
-}
+}*/
 
 const EditorForm = (props) => {
     return (
@@ -56,35 +57,160 @@ const ViewPanelActionButtons = (props) => {
 
 function EditorPanel2(props) {
     let {
-        viewInfo: {
-            view, 
-            viewName,
-            modelSchema,
-            modelName
-        },
-        types,
-        formState,
-        model,
-        
+        submit,
+        cancel,
+        showButtons,
+        mainChildren,
+        modalChildren,
+        formValid,
+        title,
+        id
     } = props;
-};
-
-const EditorPanel = (props) => {
-    //useRenderCount("ViewPanel");
-    const {viewInfo: {view, viewName, modelSchema, modelName}, types} = props;
-    
-    const formState = useSelector(selectFormState(modelName));
-    const model = useSelector(selectModel(modelName));
-
-    const dispatch = useDispatch();
 
     const [advancedModalShown, updateAdvancedModalShown] = useState(false);
     const [panelBodyShown, updatePanelBodyShown] = useState(true);
 
+    const headerButtons = (
+        <Fragment>
+            <a className="ms-2" onClick={() => updateAdvancedModalShown(true)}><FontAwesomeIcon icon={Icon.faPencil} fixedWidth /></a>
+            <a className="ms-2" onClick={() => updatePanelBodyShown(! panelBodyShown)}><FontAwesomeIcon icon={panelBodyShown ? Icon.faChevronUp : Icon.faChevronDown} fixedWidth /></a>
+        </Fragment>
+    );
 
-    const isModelDirty = () => Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
-    const isModelValid = () => !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false);
-    const cancelChanges = () => {
+    let _cancel = () => {
+        updateAdvancedModalShown(false);
+        cancel();
+    }
+
+    let _submit = () => {
+        updateAdvancedModalShown(false);
+        submit();
+    }
+
+    const actionButtons = <ViewPanelActionButtons canSave={formValid} onSave={_submit} onCancel={_cancel}></ViewPanelActionButtons>
+
+    // TODO: should this cancel changes on modal hide??
+    return (
+        <Panel title={title} buttons={headerButtons} panelBodyShown={panelBodyShown}>
+            <EditorForm key={id}>
+                {mainChildren}
+            </EditorForm>
+
+            <Modal show={advancedModalShown} onHide={() => _cancel()} size="lg">
+                <Modal.Header className="lead bg-info bg-opacity-25">
+                    { title }
+                </Modal.Header>
+                <Modal.Body>
+                    <EditorForm key={id}>
+                        {modalChildren}
+                    </EditorForm>
+                    {showButtons &&
+                     <Fragment>
+                         {actionButtons}
+                     </Fragment>
+                    }
+                </Modal.Body>
+            </Modal>
+            {showButtons && actionButtons}
+        </Panel>
+    )
+}
+
+const MyAppEditorPanel = new ComponentBuilder(EditorPanel2)
+    .needsDispatch('dispatch')
+    .withSelector('model', ({ viewInfo: { modelName } }) => selectModel(modelName))
+    .withSelector('formState', ({ viewInfo: { modelName } }) => selectFormState(modelName))
+    .withValues(({ dispatch, formState, model, viewInfo: { viewName, view, modelName, modelSchema }, types }) => {
+        let isModelDirty = Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
+        let isModelValid = !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false); // TODO: check completeness
+
+        let modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
+            let [displayName, typeName, defaultValue, description] = fieldSchema;
+            let type = types[typeName];
+            return {
+                displayName,
+                typeName,
+                defaultValue,
+                description,
+                type
+            }
+        });
+
+        let onFieldUpdated = (fieldName, fieldState, event) => {
+            let nextValue = event.target.value;
+            if (fieldState.value != nextValue) {
+                dispatch(updateFormFieldState({
+                    name: modelName,
+                    field: fieldName,
+                    value: {
+                        value: nextValue,
+                        valid: modelFields[fieldName].type.validate(nextValue),
+                        touched: true
+                    },
+                }));
+            }
+        }
+    
+        let createFieldElementsForSubview = (subviewName) => {
+            return (view[subviewName] || []).map(fieldName => {
+                let fieldState = formState[fieldName];
+                let modelField = modelFields[fieldName];
+                const onChange = (event) => {
+                    onFieldUpdated(fieldName, fieldState, event);
+                }
+                let InputComponent = modelField.type.component;
+                return (
+                    <FormField label={modelField.displayName} tooltip={modelField.description} key={fieldName}>
+                        <InputComponent
+                            valid={fieldState.valid}
+                            touched={fieldState.touched}
+                            value={fieldState.value}
+                            onChange={onChange}
+                        />
+                    </FormField>
+                )
+            })
+        }
+
+        return {
+            submit: () => {
+                console.log("Congrats, you saved a model:", formState);
+                let m = {};
+                for (let k in model) {
+                    m[k] = formState[k] ? formState[k].value : model[k];
+                }
+                dispatch(updateModel({ name: modelName, value: m }));
+                dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema, types) }));
+            },
+            cancel: () => {
+                dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
+            },
+            showButtons: isModelDirty,
+            formValid: isModelValid,
+            mainChildren: createFieldElementsForSubview('basic'),
+            modalChildren: createFieldElementsForSubview('advanced'),
+            title: view.title || viewName,
+            id: viewName
+        }
+    })
+    .toComponent()
+
+const EditorPanel = (props) => {
+    //useRenderCount("ViewPanel");
+    //const {viewInfo: {view, viewName, modelSchema, modelName}, types} = props;
+    
+    //const formState = useSelector(selectFormState(modelName));
+    //const model = useSelector(selectModel(modelName));
+
+    //const dispatch = useDispatch();
+
+    //const [advancedModalShown, updateAdvancedModalShown] = useState(false);
+    //const [panelBodyShown, updatePanelBodyShown] = useState(true);
+
+
+    //const isModelDirty = () => Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
+    //const isModelValid = () => !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false);
+    /*const cancelChanges = () => {
         dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
         updateAdvancedModalShown(false);
     }
@@ -97,9 +223,9 @@ const EditorPanel = (props) => {
         dispatch(updateModel({ name: modelName, value: m }));
         dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema, types) }));
         updateAdvancedModalShown(false);
-    }
+    }*/
 
-    const modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
+    /*const modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
         let [displayName, typeName, defaultValue, description] = fieldSchema;
         let type = types[typeName];
         return {
@@ -109,18 +235,18 @@ const EditorPanel = (props) => {
             description,
             type
         }
-    });
+    });*/
 
-    const headerButtons = (
+    /*const headerButtons = (
         <Fragment>
             <a className="ms-2" onClick={() => updateAdvancedModalShown(true)}><FontAwesomeIcon icon={Icon.faPencil} fixedWidth /></a>
             <a className="ms-2" onClick={() => updatePanelBodyShown(! panelBodyShown)}><FontAwesomeIcon icon={panelBodyShown ? Icon.faChevronUp : Icon.faChevronDown} fixedWidth /></a>
         </Fragment>
-    );
-    const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={cancelChanges}></ViewPanelActionButtons>
-    const dirty = isModelDirty();
+    );*/
+    //const actionButtons = <ViewPanelActionButtons canSave={isModelValid()} onSave={saveModel} onCancel={cancelChanges}></ViewPanelActionButtons>
+    //const dirty = isModelDirty();
 
-    const onFieldUpdated = (fieldName, fieldState, event) => {
+    /*const onFieldUpdated = (fieldName, fieldState, event) => {
         let nextValue = event.target.value;
         if (fieldState.value != nextValue) {
             dispatch(updateFormFieldState({
@@ -152,9 +278,9 @@ const EditorPanel = (props) => {
                 </FormField>
             )
         })
-    }
+    }*/
 
-    return (
+    /*return (
         <Panel title={view.title || viewName} buttons={headerButtons} panelBodyShown={panelBodyShown}>
             <EditorForm key={viewName}>
                 {createFieldElementsForSubview('basic')}
@@ -177,7 +303,7 @@ const EditorPanel = (props) => {
             </Modal>
             {dirty && actionButtons}
         </Panel>
-    )
+    )*/
 }
 
 const Panel = (props) => {
@@ -279,7 +405,7 @@ const AppRootInner = ({schema}) => {
         const viewPanels = Object.keys(viewInfos).map(viewName => {
             return (
                 <Col md={6} className="mb-3" key={viewName}>
-                    <EditorPanel
+                    <MyAppEditorPanel
                         key={viewName}
                         viewInfo={viewInfos[viewName]}
                         types={types}
