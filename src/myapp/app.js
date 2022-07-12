@@ -67,7 +67,7 @@ function EditorPanel2(props) {
         model,
         
     } = props;
-}
+};
 
 const EditorPanel = (props) => {
     //useRenderCount("ViewPanel");
