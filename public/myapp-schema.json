@@ -37,6 +37,7 @@
     "view": {
         "dog": {
             "title": "Dog",
+            "report": "editor",
             "basic": [
                 "breed",
                 "weight",
@@ -54,6 +55,7 @@
         "dog2": {
             "title": "Dog2",
             "model": "dog",
+            "report": "editor",
             "basic": [
                 "breed",
                 "weight",
@@ -70,6 +72,7 @@
         },
         "heightWeightReport": {
             "title": "Physical Characteristics",
+            "report": "2d",
             "advanced": []
         }
     }

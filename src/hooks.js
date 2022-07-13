@@ -21,16 +21,16 @@ import React, { useState, useEffect, useRef } from 'react';
 export function useSetup(shouldRun, callback) {
     const [hasSetup, updateHasSetup] = useState(false);
     const [callbackStarted] = useState({value: false});
-    useEffect(() => {
-        if(shouldRun && !hasSetup && !callbackStarted.value) {
-            callbackStarted.value = true;
-            callback();
-        }
-    });
     const finish = () => {
         updateHasSetup(true);
     }
-    return [hasSetup, finish];
+    useEffect(() => {
+        if(shouldRun && !hasSetup && !callbackStarted.value) {
+            callbackStarted.value = true;
+            callback(finish);
+        }
+    });
+    return hasSetup;
 }
 
 export function useRenderCount(name) {

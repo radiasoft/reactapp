@@ -1,11 +1,9 @@
 // import {React}
-import React, { Fragment, useContext, useState } from "react";
-import { Button, Card, Col, Container, Form, Modal, Row } from "react-bootstrap";
+import React, { useState } from "react";
+import { Button, Col, Container, Row } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
 import { enumTypeOf, globalTypes } from "../types";
 import { useDispatch, Provider, useSelector } from "react-redux";
-import * as Icon from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSetup } from "../hooks";
 import {
     modelsSlice,
@@ -15,113 +13,86 @@ import {
     updateModel,
     selectModels,
 } from "./models";
-import {
-    formStatesSlice,
-    selectFormState,
-    updateFormState,
-    updateFormFieldState,
-} from "./formState";
 import { mapProperties } from '../helper'
 import { FormField } from "../components/form";
 
+import {
+    selectFormState,
+    updateFormState,
+    updateFormFieldState,
+    formStatesSlice
+} from './formState'
+
 import "./myapp.scss"
-import { ComponentBuilder } from "../components/builder";
+import { ComponentBuilder, ConditionalComponentBuilder, ContextWrapperComponentBuilder, InitializerComponentBuilder } from "../components/builder";
+import { EditorPanel } from "../components/panel";
+import { ViewGrid } from "../components/simulation";
 
-/*function FieldControllerInput(props) {
-    let {type, fieldState: {value, valid, touched}, onChange, ...otherProps} = props;
-    return type.componentFactory({
-        valid,
-        value,
-        touched,
-        onChange
-    })(otherProps);
-}*/
-
-const EditorForm = (props) => {
-    return (
-        <Form>
-            {props.children}
-        </Form>
-    );
-}
-
-const ViewPanelActionButtons = (props) => {
-    const {canSave, onSave, onCancel, ...otherProps} = props;
-    return (
-        <Col className="text-center" sm={12}>
-            <Button onClick={onSave} disabled={! canSave } variant="primary">Save Changes</Button>
-            <Button onClick={onCancel} variant="light" className="ms-1">Cancel</Button>
-        </Col>
-    )
-}
-
-function EditorPanel2(props) {
-    let {
-        submit,
-        cancel,
-        showButtons,
-        mainChildren,
-        modalChildren,
-        formValid,
-        title,
-        id
-    } = props;
-
-    const [advancedModalShown, updateAdvancedModalShown] = useState(false);
-    const [panelBodyShown, updatePanelBodyShown] = useState(true);
-
-    const headerButtons = (
-        <Fragment>
-            <a className="ms-2" onClick={() => updateAdvancedModalShown(true)}><FontAwesomeIcon icon={Icon.faPencil} fixedWidth /></a>
-            <a className="ms-2" onClick={() => updatePanelBodyShown(! panelBodyShown)}><FontAwesomeIcon icon={panelBodyShown ? Icon.faChevronUp : Icon.faChevronDown} fixedWidth /></a>
-        </Fragment>
-    );
-
-    let _cancel = () => {
-        updateAdvancedModalShown(false);
-        cancel();
+let formStateFromModel = (model, modelSchema, types) => mapProperties(modelSchema, (fieldName, [ , typeName]) => {
+    const type = types[typeName];
+    const valid = type.validate(model[fieldName])
+    return {
+        valid: valid,
+        value: valid ? model[fieldName] : "",
+        touched: false,
     }
+})
 
-    let _submit = () => {
-        updateAdvancedModalShown(false);
-        submit();
-    }
+const ContextTypes = React.createContext();
+const ContextReduxFormActions = React.createContext();
+const ContextReduxFormSelectors = React.createContext();
+const ContextReduxModelActions = React.createContext();
+const ContextReduxModelSelectors = React.createContext();
 
-    const actionButtons = <ViewPanelActionButtons canSave={formValid} onSave={_submit} onCancel={_cancel}></ViewPanelActionButtons>
+const ReduxFormActionsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+    .providingContext(ContextReduxFormActions, () => {
+        return {
+            updateFormState,
+            updateFormFieldState
+        }
+    })
 
-    // TODO: should this cancel changes on modal hide??
-    return (
-        <Panel title={title} buttons={headerButtons} panelBodyShown={panelBodyShown}>
-            <EditorForm key={id}>
-                {mainChildren}
-            </EditorForm>
+const ReduxFormSelectorsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+    .providingContext(ContextReduxFormSelectors, () => {
+        return {
+            selectFormState
+        }
+    })
 
-            <Modal show={advancedModalShown} onHide={() => _cancel()} size="lg">
-                <Modal.Header className="lead bg-info bg-opacity-25">
-                    { title }
-                </Modal.Header>
-                <Modal.Body>
-                    <EditorForm key={id}>
-                        {modalChildren}
-                    </EditorForm>
-                    {showButtons &&
-                     <Fragment>
-                         {actionButtons}
-                     </Fragment>
-                    }
-                </Modal.Body>
-            </Modal>
-            {showButtons && actionButtons}
-        </Panel>
-    )
-}
+const ReduxModelActionsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+    .providingContext(ContextReduxModelActions, () => {
+        return {
+            updateModel
+        }
+    })
+
+const ReduxModelSelectorsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+    .providingContext(ContextReduxModelSelectors, () => {
+        return {
+            selectModel,
+            selectModels
+        }
+    })
+
+const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
+    .usingSelector('isLoaded', () => selectIsLoaded)
+    .usingConditional(({ isLoaded }) => isLoaded)
+
 
 // TODO: build this call from schema
-const MyAppEditorPanel = new ComponentBuilder(EditorPanel2)
-    .withDispatch('dispatch')
-    .withSelector('model', ({ viewInfo: { modelName } }) => selectModel(modelName))
-    .withSelector('formState', ({ viewInfo: { modelName } }) => selectFormState(modelName))
-    .withValues(({ dispatch, formState, model, viewInfo: { viewName, view, modelName, modelSchema }, types }) => {
+const SchemaEditorPanel = (schema) => ({ modelName, modelSchema, view, viewName }) => {
+    return new ComponentBuilder()
+    .usingDispatch('dispatch')
+    .usingContext('types', () => ContextTypes)
+    .usingContext('formActions', () => ContextReduxFormActions)
+    .usingContext('formSelectors', () => ContextReduxFormSelectors)
+    .usingContext('modelActions', () => ContextReduxModelActions)
+    .usingContext('modelSelectors', () => ContextReduxModelSelectors)
+    .usingSelector('model', ({ modelSelectors: { selectModel } }) => selectModel(modelName))
+    .usingSelector('formState', ({ formSelectors: { selectFormState } }) => {
+        selectFormState(modelName)
+    })
+    .usingValues(({ formActions: { updateFormState, updateFormFieldState }, modelActions: { updateModel }, dispatch, formState, model, types }) => {
         let isModelDirty = Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
         let isModelValid = !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false); // TODO: check completeness
 
@@ -194,83 +165,41 @@ const MyAppEditorPanel = new ComponentBuilder(EditorPanel2)
             id: viewName
         }
     })
-    .toComponent()
+    .toComponent(EditorPanel)
+} 
 
-const Panel = (props) => {
-    const {title, buttons, viewInfo, panelBodyShown, ...otherProps} = props;
-    return (
-        <Card>
-            <Card.Header className="lead bg-info bg-opacity-25">
-                {title}
-                <div className="float-end">
-                    {buttons}
-                </div>
-            </Card.Header>
-            {panelBodyShown &&
-             <Card.Body>
-                 {props.children}
-             </Card.Body>
-            }
-        </Card>
-    );
-}
+/*const SchemaInitializerBuilder = new InitializerComponentBuilder()
+    .usingValueInitializer('schema', ({ schemaPath }, finishInitSchema) => fetch(schemaPath).then(resp => resp.text().then(text => {
+        finishInitSchema(JSON.parse(text));
+    })))*/
 
-const formStateFromModel = (model, modelSchema, types) => mapProperties(modelSchema, (fieldName, [ , typeName]) => {
-    const type = types[typeName];
-    const valid = type.validate(model[fieldName])
-    return {
-        valid: valid,
-        value: valid ? model[fieldName] : "",
-        touched: false,
-    }
-})
+const FormStateInitializerBuilder = new InitializerComponentBuilder()
+    .usingDispatch('dispatch')
+    .usingSelector('models', () => selectModels)
+    .usingContext('types', () => ContextTypes)
+    .usingVoidInitializer(({ dispatch, models, types, viewInfos, updateFormState }, finishInitFormState) => {
+        for(const viewInfo of Object.values(viewInfos)) {
+            dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
+        }
+        finishInitFormState();
+    })
 
-const AppRoot = (props) => {
-    const [schema, updateSchema] = useState(undefined);
-    const formStateStore = configureStore({
-        reducer: {
-            [modelsSlice.name]: modelsSlice.reducer,
-            [formStatesSlice.name]: formStatesSlice.reducer,
-        },
-    });
-    const [hasSchema, finishInitSchema] = useSetup(true,
-        () => fetch(props.schemaPath).then(resp => resp.text().then(text => {
-            updateSchema(JSON.parse(text));
-            finishInitSchema();
-        }))
-    )
-    return (hasSchema &&
-        <Provider store={formStateStore}>
-            <AppRootInner
-                {...props}
-                schema={schema}
-            >
-            </AppRootInner>
-        </Provider>
-    )
-}
 
-const AppRootInner = ({schema}) => {
-    //useRenderCount("AppRootInner");
-    const isLoaded = useSelector(selectIsLoaded);
-    const dispatch = useDispatch();
-    const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
-        return enumTypeOf(
-            enumSchema.map(v => {
-                const [value, displayName] = v;
-                return {
-                    value,
-                    displayName
-                }
-            })
-        );
-    });
-    const types = {
-        ...globalTypes,
-        ...schemaTypes
+
+class AppViewBuilder{
+    constructor (schema) { 
+        this.components = {
+            'editor': SchemaEditorPanel(schema)
+        }
     }
 
-    const viewInfos = mapProperties(schema.view, (viewName, view) => {
+    buildComponentForView = (viewInfo) => {
+        return this.components[viewInfo.report || 'editor'](viewInfo);
+    }
+}
+
+function buildAppComponentsRoot(schema) {
+    let viewInfos = mapProperties(schema.view, (viewName, view) => {
         const modelName = view.model || viewName;
         const modelSchema = schema.model[modelName];
         return {
@@ -281,21 +210,106 @@ const AppRootInner = ({schema}) => {
         }
     })
 
-    const models = useSelector(selectModels);
+    const TypesContextWrapperBuilder = new ContextWrapperComponentBuilder()
+    .providingContext(ContextTypes, () => {
+        const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
+            return enumTypeOf(
+                enumSchema.map(v => {
+                    const [value, displayName] = v;
+                    return {
+                        value,
+                        displayName
+                    }
+                })
+            );
+        });
+        const types = {
+            ...globalTypes,
+            ...schemaTypes
+        }
+        return types;
+    })
+
+    let viewBuilder = new AppViewBuilder(schema);
+    
+    let viewComponents = mapProperties(viewInfos, (viewName, viewInfo) => viewBuilder.buildComponentForView(viewInfo));
+
+    return RequiresIsLoadedBuilder.usingDispatch('dispatch').elseComponent(
+        ({dispatch}) => {
+            return (
+                <Col className="mt-3 ms-3">
+                    <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
+                </Col>
+            )
+        }
+    ).toComponent(
+        ReduxModelActionsContextWrapperBuilder.toComponent(
+            ReduxModelSelectorsContextWrapperBuilder.toComponent(
+                ReduxFormActionsContextWrapperBuilder.toComponent(
+                    ReduxFormSelectorsContextWrapperBuilder.toComponent(
+                        TypesContextWrapperBuilder.toComponent(
+                            FormStateInitializerBuilder.toComponent(
+                                () => {
+                                    return (
+                                        <ViewGrid views={Object.values(viewComponents)}>
+                                        </ViewGrid>
+                                    )
+                                }
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+}
+
+
+const AppRoot = (props) => {
+    const [schema, updateSchema] = useState(undefined);
+    const formStateStore = configureStore({
+        reducer: {
+            [modelsSlice.name]: modelsSlice.reducer,
+            [formStatesSlice.name]: formStatesSlice.reducer,
+        },
+    });
+    const hasSchema = useSetup(true,
+        (finishInitSchema) => fetch(props.schemaPath).then(resp => resp.text().then(text => {
+            updateSchema(JSON.parse(text));
+            finishInitSchema();
+        }))
+    )
+
+    if(hasSchema) {
+        let AppChild = buildAppComponentsRoot(schema);
+        return (
+            <Provider store={formStateStore}>
+                <AppChild></AppChild>
+            </Provider>
+        )
+    }
+}
+
+const AppRootInner = ({schema}) => {
+    //useRenderCount("AppRootInner");
+    //const isLoaded = useSelector(selectIsLoaded);
+    //const dispatch = useDispatch();
+
+    //const models = useSelector(selectModels);
 
     // one time initialize form state for each view on model
-    const [hasInitFormState, finishInitFormState] = useSetup(isLoaded, () => {
+    /*const hasInitFormState = useSetup(isLoaded, (finishInitFormState) => {
         for(const viewInfo of Object.values(viewInfos)) {
             dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
         }
         finishInitFormState();
-    })
+    })*/
     
-    if (isLoaded && hasInitFormState) {
+    /*if (isLoaded && hasInitFormState) {
         const viewPanels = Object.keys(viewInfos).map(viewName => {
             return (
                 <Col md={6} className="mb-3" key={viewName}>
-                    <MyAppEditorPanel
+                    <AppEditorPanel
                         key={viewName}
                         viewInfo={viewInfos[viewName]}
                         types={types}
@@ -315,7 +329,7 @@ const AppRootInner = ({schema}) => {
         <Col className="mt-3 ms-3">
             <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
         </Col>
-    )
+    )*/
 }
 
 export default AppRoot;
