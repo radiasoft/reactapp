@@ -1,9 +1,9 @@
 // import {React}
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { Button, Col, Container, Row } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
 import { enumTypeOf, globalTypes } from "../types";
-import { useDispatch, Provider, useSelector } from "react-redux";
+import { useDispatch, Provider, useSelector, useStore } from "react-redux";
 import { useSetup } from "../hooks";
 import {
     modelsSlice,
@@ -38,13 +38,12 @@ let formStateFromModel = (model, modelSchema, types) => mapProperties(modelSchem
     }
 })
 
-const ContextTypes = React.createContext();
 const ContextReduxFormActions = React.createContext();
 const ContextReduxFormSelectors = React.createContext();
 const ContextReduxModelActions = React.createContext();
 const ContextReduxModelSelectors = React.createContext();
 
-const ReduxFormActionsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+const ReduxFormActionsContextWrapper = new ContextWrapperComponentBuilder()
     .providingContext(ContextReduxFormActions, () => {
         return {
             updateFormState,
@@ -52,21 +51,21 @@ const ReduxFormActionsContextWrapperBuilder = new ContextWrapperComponentBuilder
         }
     })
 
-const ReduxFormSelectorsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+const ReduxFormSelectorsContextWrapper= new ContextWrapperComponentBuilder()
     .providingContext(ContextReduxFormSelectors, () => {
         return {
             selectFormState
         }
     })
 
-const ReduxModelActionsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+const ReduxModelActionsContextWrapper = new ContextWrapperComponentBuilder()
     .providingContext(ContextReduxModelActions, () => {
         return {
             updateModel
         }
     })
 
-const ReduxModelSelectorsContextWrapperBuilder = new ContextWrapperComponentBuilder()
+const ReduxModelSelectorsContextWrapper = new ContextWrapperComponentBuilder()
     .providingContext(ContextReduxModelSelectors, () => {
         return {
             selectModel,
@@ -80,19 +79,18 @@ const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
 
 
 // TODO: build this call from schema
-const SchemaEditorPanel = (schema) => ({ modelName, modelSchema, view, viewName }) => {
-    return new ComponentBuilder()
-    .usingDispatch('dispatch')
-    .usingContext('types', () => ContextTypes)
-    .usingContext('formActions', () => ContextReduxFormActions)
-    .usingContext('formSelectors', () => ContextReduxFormSelectors)
-    .usingContext('modelActions', () => ContextReduxModelActions)
-    .usingContext('modelSelectors', () => ContextReduxModelSelectors)
-    .usingSelector('model', ({ modelSelectors: { selectModel } }) => selectModel(modelName))
-    .usingSelector('formState', ({ formSelectors: { selectFormState } }) => {
-        selectFormState(modelName)
-    })
-    .usingValues(({ formActions: { updateFormState, updateFormFieldState }, modelActions: { updateModel }, dispatch, formState, model, types }) => {
+const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view, viewName }) => {
+    let SchemaEditorPanelComponent = (props) => {
+        let dispatch = useDispatch();
+
+        let { updateFormFieldState, updateFormState } = useContext(ContextReduxFormActions); // TODO: make these generic
+        let { selectFormState } = useContext(ContextReduxFormSelectors);
+        let { updateModel } = useContext(ContextReduxModelActions);
+        let { selectModel, selectModels } = useContext(ContextReduxModelSelectors);
+        
+        let model = useSelector(selectModel(modelName));
+        let formState = useSelector(selectFormState(modelName));
+
         let isModelDirty = Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
         let isModelValid = !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false); // TODO: check completeness
 
@@ -144,7 +142,7 @@ const SchemaEditorPanel = (schema) => ({ modelName, modelSchema, view, viewName 
             })
         }
 
-        return {
+        let formProps = {
             submit: () => {
                 console.log("Congrats, you saved a model:", formState);
                 let m = {};
@@ -164,32 +162,36 @@ const SchemaEditorPanel = (schema) => ({ modelName, modelSchema, view, viewName 
             title: view.title || viewName,
             id: viewName
         }
-    })
-    .toComponent(EditorPanel)
+
+        return (
+            <EditorPanel {...formProps}>
+            </EditorPanel>
+        )
+    }
+    return SchemaEditorPanelComponent;
 } 
 
-/*const SchemaInitializerBuilder = new InitializerComponentBuilder()
-    .usingValueInitializer('schema', ({ schemaPath }, finishInitSchema) => fetch(schemaPath).then(resp => resp.text().then(text => {
-        finishInitSchema(JSON.parse(text));
-    })))*/
-
-const FormStateInitializerBuilder = new InitializerComponentBuilder()
-    .usingDispatch('dispatch')
-    .usingSelector('models', () => selectModels)
-    .usingContext('types', () => ContextTypes)
-    .usingVoidInitializer(({ dispatch, models, types, viewInfos, updateFormState }, finishInitFormState) => {
-        for(const viewInfo of Object.values(viewInfos)) {
-            dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
-        }
-        finishInitFormState();
-    })
-
-
+const FormStateInitializer = ({ types, viewInfos }) => (child) => {
+    let FormStateInitializerComponent = (props) => {
+        let dispatch = useDispatch();
+        let store = useStore();
+        let models = selectModels(store.getState());
+        let hasInit = useSetup(true, (finishInitFormState) => {
+            for(const viewInfo of Object.values(viewInfos)) {
+                dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
+            }
+            finishInitFormState();
+        })
+        let ChildComponent = child;
+        return hasInit && <ChildComponent {...props}/>;
+    }
+    return FormStateInitializerComponent;
+}
 
 class AppViewBuilder{
-    constructor (schema) { 
+    constructor (appInfo) { 
         this.components = {
-            'editor': SchemaEditorPanel(schema)
+            'editor': SchemaEditorPanel(appInfo)
         }
     }
 
@@ -210,27 +212,23 @@ function buildAppComponentsRoot(schema) {
         }
     })
 
-    const TypesContextWrapperBuilder = new ContextWrapperComponentBuilder()
-    .providingContext(ContextTypes, () => {
-        const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
-            return enumTypeOf(
-                enumSchema.map(v => {
-                    const [value, displayName] = v;
-                    return {
-                        value,
-                        displayName
-                    }
-                })
-            );
-        });
-        const types = {
-            ...globalTypes,
-            ...schemaTypes
-        }
-        return types;
-    })
+    const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
+        return enumTypeOf(
+            enumSchema.map(v => {
+                const [value, displayName] = v;
+                return {
+                    value,
+                    displayName
+                }
+            })
+        );
+    });
+    const types = {
+        ...globalTypes,
+        ...schemaTypes
+    }
 
-    let viewBuilder = new AppViewBuilder(schema);
+    let viewBuilder = new AppViewBuilder({ schema, types });
     
     let viewComponents = mapProperties(viewInfos, (viewName, viewInfo) => viewBuilder.buildComponentForView(viewInfo));
 
@@ -243,19 +241,17 @@ function buildAppComponentsRoot(schema) {
             )
         }
     ).toComponent(
-        ReduxModelActionsContextWrapperBuilder.toComponent(
-            ReduxModelSelectorsContextWrapperBuilder.toComponent(
-                ReduxFormActionsContextWrapperBuilder.toComponent(
-                    ReduxFormSelectorsContextWrapperBuilder.toComponent(
-                        TypesContextWrapperBuilder.toComponent(
-                            FormStateInitializerBuilder.toComponent(
-                                () => {
-                                    return (
-                                        <ViewGrid views={Object.values(viewComponents)}>
-                                        </ViewGrid>
-                                    )
-                                }
-                            )
+        ReduxModelActionsContextWrapper.toComponent(
+            ReduxModelSelectorsContextWrapper.toComponent(
+                ReduxFormActionsContextWrapper.toComponent(
+                    ReduxFormSelectorsContextWrapper.toComponent(
+                        FormStateInitializer({ types, viewInfos })(
+                            () => {
+                                return (
+                                    <ViewGrid views={Object.values(viewComponents)}>
+                                    </ViewGrid>
+                                )
+                            }
                         )
                     )
                 )
@@ -288,48 +284,6 @@ const AppRoot = (props) => {
             </Provider>
         )
     }
-}
-
-const AppRootInner = ({schema}) => {
-    //useRenderCount("AppRootInner");
-    //const isLoaded = useSelector(selectIsLoaded);
-    //const dispatch = useDispatch();
-
-    //const models = useSelector(selectModels);
-
-    // one time initialize form state for each view on model
-    /*const hasInitFormState = useSetup(isLoaded, (finishInitFormState) => {
-        for(const viewInfo of Object.values(viewInfos)) {
-            dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
-        }
-        finishInitFormState();
-    })*/
-    
-    /*if (isLoaded && hasInitFormState) {
-        const viewPanels = Object.keys(viewInfos).map(viewName => {
-            return (
-                <Col md={6} className="mb-3" key={viewName}>
-                    <AppEditorPanel
-                        key={viewName}
-                        viewInfo={viewInfos[viewName]}
-                        types={types}
-                    />
-                </Col>
-            )
-        });
-        return (
-            <Container fluid className="mt-3">
-                <Row>
-                    {viewPanels}
-                </Row>
-            </Container>
-        )
-    }
-    return (
-        <Col className="mt-3 ms-3">
-            <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
-        </Col>
-    )*/
 }
 
 export default AppRoot;
