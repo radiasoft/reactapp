@@ -1,8 +1,7 @@
 // import {React}
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Button, Col, Container, Row } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
-import { enumTypeOf, globalTypes } from "../types";
 import { useDispatch, Provider, useSelector, useStore } from "react-redux";
 import { useSetup } from "../hooks";
 import {
@@ -27,9 +26,9 @@ import "./myapp.scss"
 import { ComponentBuilder, ConditionalComponentBuilder, ContextWrapperComponentBuilder, InitializerComponentBuilder } from "../components/builder";
 import { EditorPanel } from "../components/panel";
 import { ViewGrid } from "../components/simulation";
+import Schema from './schema'
 
-let formStateFromModel = (model, modelSchema, types) => mapProperties(modelSchema, (fieldName, [ , typeName]) => {
-    const type = types[typeName];
+let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
     const valid = type.validate(model[fieldName])
     return {
         valid: valid,
@@ -77,34 +76,152 @@ const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
     .usingSelector('isLoaded', () => selectIsLoaded)
     .usingConditional(({ isLoaded }) => isLoaded)
 
+class DependencyService { // TODO
+    constructor() {
+
+    }
+}
+
+class FormController {
+    constructor() {
+        this.fields = [];
+    }
+
+    getModelNames = () => {
+        return [...new Set(this.fields.map(({ modelName }) => modelName))];
+    }
+
+    fieldComparator = (toFind) => ({ modelName, fieldName }) => modelName == toFind.modelName 
+    && fieldName == toFind.fieldName
+
+    find = (toFind) => {
+        return this.fields.find(
+            this.fieldComparator(toFind)
+        );
+    }
+
+    createField = (modelName, fieldName) => {
+        let field = {
+            modelName,
+            fieldName
+        }
+        let existingFields = this.find(field).length;
+        if(existingFields == 0) {
+            this.fields.push(field);
+            return field;
+        }
+        return existingFields[0];
+    }
+
+    hookFields = ({
+        formSelectors: {
+            selectFormState
+        },
+        formActions: {
+            updateFormFieldState,
+            updateFormState
+        },
+        modelSelectors: {
+            selectModel,
+            selectModels
+        },
+        modelActions: {
+            updateModel
+        }
+    }) => {
+        let makeModelSelector = ({ modelName }) => selectModel(modelName);
+        let makeFormStateSelector = ({ modelName }) => selectFormState(modelName);
+
+        let selectorFn = useSelector;
+        let dispatchFn = useDispatch;
+
+        let dispatch = dispatchFn();
+
+        let hookedModels = Object.fromEntries(
+            this.getModelNames().map(modelName => {
+                return [
+                    modelName,
+                    {
+                        model: selectorFn(makeModelSelector(modelName)),
+                        formState: selectorFn(makeFormStateSelector(modelName)),
+                        updateModel: (value) => dispatch(updateModel({ name: modelName, value }))
+                    }
+                ]
+            })
+        )
+
+        let hookedFields = this.fields.map(({ modelName, fieldName }) => {
+            let hookedModel = hookedModels[modelName];
+            let { formState } = hookedModel;
+            let { valid, value, touched } = formState[fieldName];
+            return {
+                modelName,
+                fieldName,
+                valid,
+                value,
+                touched,
+                hookedModel,
+                updateValue: (value) => dispatch(updateFormFieldState({
+                    name: modelName,
+                    field: fieldName,
+                    value: {
+                        value,
+                        valid: true, // todo
+                        touched: true
+                    }
+                }))
+            }
+        })
+
+        return hookedFields;
+    }
+
+    useFormController = (selectorsAndActions) => {
+        let hookedFields = this.hookFields(selectorsAndActions);
+        let hookedFieldFor = toFind => hookedFields.find(this.fieldComparator(toFind));
+        let isFormStateDirty = Object.values(hookedFields).map(({ touched }) => touched).includes(true);
+        let isFormStateValid = !Object.values(hookedFields).map(({ valid }) => valid).includes(false); // TODO: check completeness
+
+        return {
+            hookedFieldFor,
+            isFormStateDirty,
+            isFormStateValid
+        }
+    }
+}
 
 // TODO: build this call from schema
-const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view, viewName }) => {
+const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
+    let formController = new FormController();
+    let mapDeps = (dep) => {
+        let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
+        return {
+            modelName,
+            fieldName
+        }
+    }
+    let fields = {
+        advanced: view.config.advancedFields
+        .map(mapDeps)
+        .map(dep => formController.createField(dep)),
+
+        basic: view.config.basicFields
+        .map(mapDeps)
+        .map(dep => formController.createField(dep))
+    }
+
     let SchemaEditorPanelComponent = (props) => {
-        let dispatch = useDispatch();
-
-        let { updateFormFieldState, updateFormState } = useContext(ContextReduxFormActions); // TODO: make these generic
-        let { selectFormState } = useContext(ContextReduxFormSelectors);
-        let { updateModel } = useContext(ContextReduxModelActions);
-        let { selectModel, selectModels } = useContext(ContextReduxModelSelectors);
+        let formActions = useContext(ContextReduxFormActions); // TODO: make these generic
+        let formSelectors = useContext(ContextReduxFormSelectors);
+        let modelActions = useContext(ContextReduxModelActions);
+        let modelSelectors = useContext(ContextReduxModelSelectors);
         
-        let model = useSelector(selectModel(modelName));
-        let formState = useSelector(selectFormState(modelName));
-
-        let isModelDirty = Object.entries(formState).map(([fieldName, {value, valid, touched}]) => touched).includes(true);
-        let isModelValid = !Object.entries(formState).map(([fieldName, {value, valid, touched}]) => valid).includes(false); // TODO: check completeness
-
-        let modelFields = mapProperties(modelSchema, (fieldName, fieldSchema) => {
-            let [displayName, typeName, defaultValue, description] = fieldSchema;
-            let type = types[typeName];
-            return {
-                displayName,
-                typeName,
-                defaultValue,
-                description,
-                type
-            }
-        });
+        let instFormController = formController.useFormController({
+            formActions,
+            formSelectors,
+            modelActions,
+            modelSelectors
+        })
 
         let onFieldUpdated = (fieldName, fieldState, event) => {
             let nextValue = event.target.value;
@@ -114,7 +231,7 @@ const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view
                     field: fieldName,
                     value: {
                         value: nextValue,
-                        valid: modelFields[fieldName].type.validate(nextValue),
+                        valid: modelSchema[fieldName].type.validate(nextValue),
                         touched: true
                     },
                 }));
@@ -122,11 +239,17 @@ const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view
         }
     
         let createFieldElementsForSubview = (subviewName) => {
-            return (view[subviewName] || []).map(fieldName => {
-                let fieldState = formState[fieldName];
-                let modelField = modelFields[fieldName];
+            return (fields[subviewName] || []).map(fieldInfo => {
+                let hookedField = instFormController.hookedFieldFor(fieldInfo)
+                //let fieldState = formState[fieldName];
+                //let modelField = modelSchema[fieldName];
+                let schemaField = schema[fieldInfo.modelName][fieldName];
                 const onChange = (event) => {
-                    onFieldUpdated(fieldName, fieldState, event);
+                    let nextValue = event.target.value;
+                    if(hookedField.value != nextValue) {
+                        hookedField.updateValue(nextValue);
+                    }
+                    //onFieldUpdated(fieldName, fieldState, event);
                 }
                 let InputComponent = modelField.type.component;
                 return (
@@ -150,10 +273,10 @@ const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view
                     m[k] = formState[k] ? formState[k].value : model[k];
                 }
                 dispatch(updateModel({ name: modelName, value: m }));
-                dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema, types) }));
+                dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema) }));
             },
             cancel: () => {
-                dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema, types) }));
+                dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema) }));
             },
             showButtons: isModelDirty,
             formValid: isModelValid,
@@ -171,14 +294,14 @@ const SchemaEditorPanel = ({ schema, types }) => ({ modelName, modelSchema, view
     return SchemaEditorPanelComponent;
 } 
 
-const FormStateInitializer = ({ types, viewInfos }) => (child) => {
+const FormStateInitializer = ({ viewInfos }) => (child) => {
     let FormStateInitializerComponent = (props) => {
         let dispatch = useDispatch();
         let store = useStore();
         let models = selectModels(store.getState());
         let hasInit = useSetup(true, (finishInitFormState) => {
             for(const viewInfo of Object.values(viewInfos)) {
-                dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema, types) }));
+                dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema) }));
             }
             finishInitFormState();
         })
@@ -196,39 +319,23 @@ class AppViewBuilder{
     }
 
     buildComponentForView = (viewInfo) => {
-        return this.components[viewInfo.report || 'editor'](viewInfo);
+        return this.components[viewInfo.visual?.type || 'editor'](viewInfo);
     }
 }
 
 function buildAppComponentsRoot(schema) {
-    let viewInfos = mapProperties(schema.view, (viewName, view) => {
-        const modelName = view.model || viewName;
-        const modelSchema = schema.model[modelName];
+    let viewInfos = mapProperties(schema.views, (viewName, view) => {
+        //const modelName = view.model || viewName;
+        //const modelSchema = schema.models[modelName];
         return {
-            modelName,
-            modelSchema,
+            //modelName,
+            //modelSchema,
             view,
             viewName: viewName
         }
     })
 
-    const schemaTypes = mapProperties(schema.enum, (enumName, enumSchema) => {
-        return enumTypeOf(
-            enumSchema.map(v => {
-                const [value, displayName] = v;
-                return {
-                    value,
-                    displayName
-                }
-            })
-        );
-    });
-    const types = {
-        ...globalTypes,
-        ...schemaTypes
-    }
-
-    let viewBuilder = new AppViewBuilder({ schema, types });
+    let viewBuilder = new AppViewBuilder({ schema });
     
     let viewComponents = mapProperties(viewInfos, (viewName, viewInfo) => viewBuilder.buildComponentForView(viewInfo));
 
@@ -245,7 +352,7 @@ function buildAppComponentsRoot(schema) {
             ReduxModelSelectorsContextWrapper.toComponent(
                 ReduxFormActionsContextWrapper.toComponent(
                     ReduxFormSelectorsContextWrapper.toComponent(
-                        FormStateInitializer({ types, viewInfos })(
+                        FormStateInitializer({ viewInfos })(
                             () => {
                                 return (
                                     <ViewGrid views={Object.values(viewComponents)}>
@@ -269,11 +376,19 @@ const AppRoot = (props) => {
             [formStatesSlice.name]: formStatesSlice.reducer,
         },
     });
-    const hasSchema = useSetup(true,
+
+    /*const hasSchema = useSetup(true,
         (finishInitSchema) => fetch(props.schemaPath).then(resp => resp.text().then(text => {
             updateSchema(JSON.parse(text));
             finishInitSchema();
         }))
+    )*/
+
+    const hasSchema = useSetup(true,
+        (finishInitSchema) => {
+            updateSchema(Schema);
+            finishInitSchema();
+        }
     )
 
     if(hasSchema) {

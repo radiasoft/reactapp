@@ -70,12 +70,20 @@ export class rsFloat extends rsNumber {
     }
 }
 
+export const stringType = new rsString({
+    isRequired: true
+})
+
+export const optionalStringType = new rsString({
+    isRequired: false
+})
+
+export const floatType = new rsFloat({});
+
 export const globalTypes = {
-    'OptionalString': new rsString({
-        isRequired: false,
-    }),
-    'String': new rsString({}),
-    'Float': new rsFloat({}),
+    'OptionalString': optionalStringType,
+    'String': stringType,
+    'Float': floatType,
 }
 
 export function enumTypeOf(allowedValues) {
