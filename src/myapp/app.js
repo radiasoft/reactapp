@@ -159,7 +159,6 @@ class FormController {
     }
 
     submitChanges = () => {
-        console.log("saving model!");
         Object.entries(this.models).forEach(([modelName, model]) => {
             let changesObj = mapProperties(model.value, (fieldName, fieldState) => fieldState.value);
 
@@ -181,12 +180,10 @@ class FormController {
 
     isFormStateDirty = () => {
         let d = Object.values(this.fields).map(({ value: { active, touched } }) => active && touched).includes(true);
-        console.log("dirty: " + d);
         return d;
     }
     isFormStateValid = () => {
         let v = !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
-        console.log("valid: " + v);
         return v;
     }
 }
@@ -365,11 +362,7 @@ class AppViewBuilder{
 
 function buildAppComponentsRoot(schema) {
     let viewInfos = mapProperties(schema.views, (viewName, view) => {
-        //const modelName = view.model || viewName;
-        //const modelSchema = schema.models[modelName];
         return {
-            //modelName,
-            //modelSchema,
             view,
             viewName: viewName
         }
@@ -416,13 +409,6 @@ const AppRoot = (props) => {
             [formStatesSlice.name]: formStatesSlice.reducer,
         },
     });
-
-    /*const hasSchema = useSetup(true,
-        (finishInitSchema) => fetch(props.schemaPath).then(resp => resp.text().then(text => {
-            updateSchema(JSON.parse(text));
-            finishInitSchema();
-        }))
-    )*/
 
     const hasSchema = useSetup(true,
         (finishInitSchema) => {
