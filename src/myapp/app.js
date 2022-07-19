@@ -68,6 +68,15 @@ const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
     .usingConditional(({ isLoaded }) => isLoaded)
 
 
+let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
+    const valid = type.validate(model[fieldName])
+    return {
+        valid: valid,
+        value: valid ? model[fieldName] : "",
+        touched: false,
+        active: true
+    }
+})
 
 class FormController {
     constructor({ formActions, formSelectors }) {
@@ -90,7 +99,7 @@ class FormController {
             let model = {
                 dependency ,
                 value: {...selectFn(selectFormState(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
-                updateValue: (v) => dispatch(updateFormState(v))
+                updateValue: (v) => dispatch(updateFormState({ name: modelName, value: v }))
             }
             this.models[modelName] = model;
         }
@@ -150,8 +159,9 @@ class FormController {
     }
 
     submitChanges = () => {
+        console.log("saving model!");
         Object.entries(this.models).forEach(([modelName, model]) => {
-            let changesObj = model.value;
+            let changesObj = mapProperties(model.value, (fieldName, fieldState) => fieldState.value);
 
             let nextModelValue = {...model.dependency.value};
             Object.assign(nextModelValue, changesObj);
@@ -159,18 +169,26 @@ class FormController {
             model.dependency.updateValue(nextModelValue);
             // this should make sure that if any part of the reducers are inconsistent / cause mutations
             // then the form state should remain consistent with saved model copy
-            model.updateValue(model.dependency.value); 
+            model.updateValue(formStateFromModel(model.dependency.value, model.dependency.schema)); 
         })
     }
 
     cancelChanges = () => {
         Object.entries(this.models).forEach(([modelName, model]) => {
-            model.updateValue(model.dependency.value); 
+            model.updateValue(formStateFromModel(model.dependency.value, model.dependency.schema)); 
         })
     }
 
-    isFormStateDirty = () => Object.values(this.fields).map(({ value: { active, touched } }) => active && touched).includes(true);
-    isFormStateValid = () => !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
+    isFormStateDirty = () => {
+        let d = Object.values(this.fields).map(({ value: { active, touched } }) => active && touched).includes(true);
+        console.log("dirty: " + d);
+        return d;
+    }
+    isFormStateValid = () => {
+        let v = !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
+        console.log("valid: " + v);
+        return v;
+    }
 }
 
 let mapDependencyNameToParts = (dep) => {
@@ -192,8 +210,10 @@ class DependencyCollector {
     getModel = (modelName) => {
         let selectFn = useSelector;
         let dispatchFn = useDispatch;
+        let storeFn = useStore;
 
         let dispatch = dispatchFn();
+        let store = storeFn();
 
         let { updateModel } = this.modelActions;
         let { selectModel } = this.modelSelectors;
@@ -202,7 +222,10 @@ class DependencyCollector {
             let model = {
                 schema: this.schema.models[modelName],
                 value: {...selectFn(selectModel(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
-                updateValue: (v) => dispatch(updateModel(v))
+                updateValue: (v) => {
+                    dispatch(updateModel({ name: modelName, value: v }));
+                    model.value = {...selectModel(modelName)(store.getState())} // TODO this is janky
+                }
             }
             this.models[modelName] = model;
         }
@@ -232,6 +255,7 @@ class DependencyCollector {
 // TODO: build this call from schema
 const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
     let SchemaEditorPanelComponent = (props) => {
+        console.log("rendering editor panel");
         let formActions = useContext(ContextReduxFormActions); // TODO: make these generic
         let formSelectors = useContext(ContextReduxFormSelectors);
         let modelActions = useContext(ContextReduxModelActions);
@@ -276,8 +300,8 @@ const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
         let formProps = {
             submit: formController.submitChanges,
             cancel: formController.cancelChanges,
-            showButtons: formController.isFormStateDirty,
-            formValid: formController.isFormStateValid,
+            showButtons: formController.isFormStateDirty(),
+            formValid: formController.isFormStateValid(),
             mainChildren: createFieldElementsForSubview('basic'),
             modalChildren: createFieldElementsForSubview('advanced'),
             title: view.title || viewName,
@@ -293,15 +317,6 @@ const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
 } 
 
 const FormStateInitializer = ({ schema }) => (child) => {
-    let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
-        const valid = type.validate(model[fieldName])
-        return {
-            valid: valid,
-            value: valid ? model[fieldName] : "",
-            touched: false,
-        }
-    })
-
     let FormStateInitializerComponent = (props) => {
         let dispatch = useDispatch();
         let store = useStore();
