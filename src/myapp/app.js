@@ -252,7 +252,6 @@ class DependencyCollector {
 // TODO: build this call from schema
 const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
     let SchemaEditorPanelComponent = (props) => {
-        console.log("rendering editor panel");
         let formActions = useContext(ContextReduxFormActions); // TODO: make these generic
         let formSelectors = useContext(ContextReduxFormSelectors);
         let modelActions = useContext(ContextReduxModelActions);
