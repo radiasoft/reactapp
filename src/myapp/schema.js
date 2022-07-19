@@ -116,9 +116,10 @@ let isActiveFavoriteTreat = (modelChanges) => {
     let dogModelChanges = modelChanges['dog'];
     if(dogModelChanges) {
         if(dogModelChanges['disposition']) { // TODO by reference instead of by name ??
-            let { lastValue, currentValue, active } = dogModelChanges['disposition'];
+            let { lastValue, currentValue } = dogModelChanges['disposition'];
             let favoriteTreatChanges = dogModelChanges['favoriteTreat'] || {};
-            favoriteTreatChanges.active = (currentValue == 'friendly'); // TODO again, reference or value?
+            dogModelChanges['favoriteTreat'] = favoriteTreatChanges;
+            favoriteTreatChanges.currentValue.active = (currentValue == 'friendly'); // TODO again, reference or value?
         }
     }   
 }

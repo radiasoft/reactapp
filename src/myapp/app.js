@@ -76,188 +76,205 @@ const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
     .usingSelector('isLoaded', () => selectIsLoaded)
     .usingConditional(({ isLoaded }) => isLoaded)
 
-class DependencyService { // TODO
-    constructor() {
 
-    }
-}
 
 class FormController {
-    constructor() {
+    constructor({ formActions, formSelectors }) {
+        this.formActions = formActions;
+        this.formSelectors = formSelectors;
+        this.models = {};
         this.fields = [];
     }
 
-    getModelNames = () => {
-        return [...new Set(this.fields.map(({ modelName }) => modelName))];
-    }
-
-    fieldComparator = (toFind) => ({ modelName, fieldName }) => modelName == toFind.modelName 
-    && fieldName == toFind.fieldName
-
-    find = (toFind) => {
-        return this.fields.find(
-            this.fieldComparator(toFind)
-        );
-    }
-
-    createField = (modelName, fieldName) => {
-        let field = {
-            modelName,
-            fieldName
-        }
-        let existingFields = this.find(field).length;
-        if(existingFields == 0) {
-            this.fields.push(field);
-            return field;
-        }
-        return existingFields[0];
-    }
-
-    hookFields = ({
-        formSelectors: {
-            selectFormState
-        },
-        formActions: {
-            updateFormFieldState,
-            updateFormState
-        },
-        modelSelectors: {
-            selectModel,
-            selectModels
-        },
-        modelActions: {
-            updateModel
-        }
-    }) => {
-        let makeModelSelector = ({ modelName }) => selectModel(modelName);
-        let makeFormStateSelector = ({ modelName }) => selectFormState(modelName);
-
-        let selectorFn = useSelector;
+    getModel = (modelName, dependency) => {
+        let selectFn = useSelector;
         let dispatchFn = useDispatch;
 
         let dispatch = dispatchFn();
 
-        let hookedModels = Object.fromEntries(
-            this.getModelNames().map(modelName => {
-                return [
-                    modelName,
-                    {
-                        model: selectorFn(makeModelSelector(modelName)),
-                        formState: selectorFn(makeFormStateSelector(modelName)),
-                        updateModel: (value) => dispatch(updateModel({ name: modelName, value }))
-                    }
-                ]
-            })
-        )
+        let { selectFormState } = this.formSelectors;
+        let { updateFormState } = this.formActions;
 
-        let hookedFields = this.fields.map(({ modelName, fieldName }) => {
-            let hookedModel = hookedModels[modelName];
-            let { formState } = hookedModel;
-            let { valid, value, touched } = formState[fieldName];
-            return {
-                modelName,
+        if(!(modelName in this.models)) {
+            let model = {
+                dependency ,
+                value: {...selectFn(selectFormState(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
+                updateValue: (v) => dispatch(updateFormState(v))
+            }
+            this.models[modelName] = model;
+        }
+        return this.models[modelName];
+    }
+
+    getField = (dep) => {
+        let dispatchFn = useDispatch;
+
+        let dispatch = dispatchFn();
+
+        let { fieldName, modelName } = dep;
+        let { updateFormFieldState } = this.formActions;
+
+        let findField = (modelName, fieldName) => {
+            return this.fields.find((o) => {
+                return o.modelName == modelName && o.fieldName == fieldName;
+            })
+        }
+
+        var field = findField(modelName, fieldName);
+        if(!field) {
+            let model = this.getModel(modelName, dep.model);
+            let currentValue = model.value[fieldName];
+            field = {
                 fieldName,
-                valid,
-                value,
-                touched,
-                hookedModel,
-                updateValue: (value) => dispatch(updateFormFieldState({
+                modelName,
+                model,
+                value: currentValue,
+                dependency: dep,
+                updateValue: (v) => dispatch(updateFormFieldState({
                     name: modelName,
                     field: fieldName,
-                    value: {
-                        value,
-                        valid: true, // todo
-                        touched: true
+                    value: { // TODO, value should be defined as the param to the function??
+                        value: v,
+                        valid: dep.type.validate(v),
+                        touched: true,
+                        active: currentValue.active
+                    }
+                })),
+                updateActive: (a) => dispatch(updateFormFieldState({
+                    name: modelName,
+                    field: fieldName,
+                    value: { // TODO, value should be defined as the param to the function??
+                        ...currentValue,
+                        active: a
                     }
                 }))
             }
-        })
-
-        return hookedFields;
+            this.fields.push(field);
+        }
+        return field;
     }
 
-    useFormController = (selectorsAndActions) => {
-        let hookedFields = this.hookFields(selectorsAndActions);
-        let hookedFieldFor = toFind => hookedFields.find(this.fieldComparator(toFind));
-        let isFormStateDirty = Object.values(hookedFields).map(({ touched }) => touched).includes(true);
-        let isFormStateValid = !Object.values(hookedFields).map(({ valid }) => valid).includes(false); // TODO: check completeness
+    hookField = (fieldModelDep) => {
+        return this.getField(fieldModelDep);
+    }
+
+    submitChanges = () => {
+        Object.entries(this.models).forEach(([modelName, model]) => {
+            let changesObj = model.value;
+
+            let nextModelValue = {...model.dependency.value};
+            Object.assign(nextModelValue, changesObj);
+
+            model.dependency.updateValue(nextModelValue);
+            // this should make sure that if any part of the reducers are inconsistent / cause mutations
+            // then the form state should remain consistent with saved model copy
+            model.updateValue(model.dependency.value); 
+        })
+    }
+
+    cancelChanges = () => {
+        Object.entries(this.models).forEach(([modelName, model]) => {
+            model.updateValue(model.dependency.value); 
+        })
+    }
+
+    isFormStateDirty = () => Object.values(this.fields).map(({ value: { active, touched } }) => active && touched).includes(true);
+    isFormStateValid = () => !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
+}
+
+class DependencyCollector {
+    constructor({ modelActions, modelSelectors, schema }) {
+        this.models = {};
+        this.modelActions = modelActions;
+        this.modelSelectors = modelSelectors;
+        this.schema = schema
+    }
+
+    getModel = (modelName) => {
+        let selectFn = useSelector;
+        let dispatchFn = useDispatch;
+
+        let dispatch = dispatchFn();
+
+        let { updateModel } = this.modelActions;
+        let { selectModel } = this.modelSelectors;
+
+        if (!(modelName in this.models)) {
+            let model = {
+                schema: this.schema.models[modelName],
+                value: {...selectFn(selectModel(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
+                updateValue: (v) => dispatch(updateModel(v))
+            }
+            this.models[modelName] = model;
+        }
+
+        return this.models[modelName];
+    }
+
+    hookModelDependency = (depString) => {
+        let mapDep = (dep) => {
+            let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
+            return {
+                modelName,
+                fieldName
+            }
+        }
+    
+        let { modelName, fieldName } = mapDep(depString);
+    
+        let model = this.getModel(modelName);
+        let fieldSchema = model.schema[fieldName];
 
         return {
-            hookedFieldFor,
-            isFormStateDirty,
-            isFormStateValid
+            modelName,
+            fieldName,
+            model,
+            displayName: fieldSchema.name,
+            type: fieldSchema.type,
+            defaultValue: fieldSchema.defaultValue,
+            description: fieldSchema.description,
+            value: model.value[fieldName]
         }
     }
 }
 
 // TODO: build this call from schema
 const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
-    let formController = new FormController();
-    let mapDeps = (dep) => {
-        let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
-        return {
-            modelName,
-            fieldName
-        }
-    }
-    let fields = {
-        advanced: view.config.advancedFields
-        .map(mapDeps)
-        .map(dep => formController.createField(dep)),
-
-        basic: view.config.basicFields
-        .map(mapDeps)
-        .map(dep => formController.createField(dep))
-    }
-
     let SchemaEditorPanelComponent = (props) => {
         let formActions = useContext(ContextReduxFormActions); // TODO: make these generic
         let formSelectors = useContext(ContextReduxFormSelectors);
         let modelActions = useContext(ContextReduxModelActions);
         let modelSelectors = useContext(ContextReduxModelSelectors);
-        
-        let instFormController = formController.useFormController({
-            formActions,
-            formSelectors,
-            modelActions,
-            modelSelectors
-        })
 
-        let onFieldUpdated = (fieldName, fieldState, event) => {
-            let nextValue = event.target.value;
-            if (fieldState.value != nextValue) {
-                dispatch(updateFormFieldState({
-                    name: modelName,
-                    field: fieldName,
-                    value: {
-                        value: nextValue,
-                        valid: modelSchema[fieldName].type.validate(nextValue),
-                        touched: true
-                    },
-                }));
-            }
+        let depCollector = new DependencyCollector({ modelActions, modelSelectors, schema });
+        let formController = new FormController({ formActions, formSelectors });
+
+        let collectModelField = (depStr) => depCollector.hookModelDependency(depStr);
+        let hookFormField = (dep) => formController.hookField(dep);
+
+        let configFields = {
+            basic: view.config.basicFields,
+            advanced: view.config.advancedFields
         }
+
+        let modelFields = mapProperties(configFields, (subviewName, depStrs) => depStrs.map(collectModelField));
+        let formFields = mapProperties(modelFields, (subviewName, deps) => deps.map(hookFormField));
     
         let createFieldElementsForSubview = (subviewName) => {
-            return (fields[subviewName] || []).map(fieldInfo => {
-                let hookedField = instFormController.hookedFieldFor(fieldInfo)
-                //let fieldState = formState[fieldName];
-                //let modelField = modelSchema[fieldName];
-                let schemaField = schema[fieldInfo.modelName][fieldName];
+            return (formFields[subviewName] || []).map(field => {
                 const onChange = (event) => {
                     let nextValue = event.target.value;
-                    if(hookedField.value != nextValue) {
-                        hookedField.updateValue(nextValue);
+                    if(field.value.value != nextValue) { // TODO fix field.value.value naming
+                        field.updateValue(nextValue);
                     }
-                    //onFieldUpdated(fieldName, fieldState, event);
                 }
-                let InputComponent = modelField.type.component;
+                let InputComponent = field.type.component;
                 return (
-                    <FormField label={modelField.displayName} tooltip={modelField.description} key={fieldName}>
+                    <FormField label={field.displayName} tooltip={field.description} key={field.fieldName}>
                         <InputComponent
-                            valid={fieldState.valid}
-                            touched={fieldState.touched}
-                            value={fieldState.value}
+                            valid={field.value.valid}
+                            touched={field.value.touched}
+                            value={field.value.value}
                             onChange={onChange}
                         />
                     </FormField>
@@ -266,20 +283,10 @@ const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
         }
 
         let formProps = {
-            submit: () => {
-                console.log("Congrats, you saved a model:", formState);
-                let m = {};
-                for (let k in model) {
-                    m[k] = formState[k] ? formState[k].value : model[k];
-                }
-                dispatch(updateModel({ name: modelName, value: m }));
-                dispatch(updateFormState({ name: modelName, value: formStateFromModel(m, modelSchema) }));
-            },
-            cancel: () => {
-                dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, modelSchema) }));
-            },
-            showButtons: isModelDirty,
-            formValid: isModelValid,
+            submit: formController.submitChanges,
+            cancel: formController.cancelChanges,
+            showButtons: formController.isFormStateDirty,
+            formValid: formController.isFormStateValid,
             mainChildren: createFieldElementsForSubview('basic'),
             modalChildren: createFieldElementsForSubview('advanced'),
             title: view.title || viewName,
