@@ -6,27 +6,23 @@ export class rsType {
         this.colSize = this.hasValue(colSize) ? colSize : 5;
         this.isRequired = this.hasValue(isRequired) ? isRequired : true;
     }
-    componentFactory({
-        value,
-        valid,
-        touched,
-        onChange
-    }) {
-        return (props) => {
-            return (
-                <Col sm={this.colSize}>
-                    {
-                        this.uiComponent({
-                            ...props,
-                            value: this.hasValue(value) ? value : "",
-                            isInvalid: ! valid && touched,
-                            onChange,
-                        })
-                    }
-                </Col>
-            )
-        }
+
+    component = (props) => {
+        let {value, valid, touched, onChange, ...otherProps} = props;
+        return (
+            <Col sm={this.colSize}>
+                {
+                    this.inputComponent({
+                        ...otherProps,
+                        value: this.hasValue(value) ? value : "",
+                        isInvalid: ! valid && touched,
+                        onChange,
+                    })
+                }
+            </Col>
+        )
     }
+
     dbValue(value) {
         return value;
     }
@@ -43,7 +39,7 @@ export class rsString extends rsType {
         super(props);
         this.align = "text-start";
     }
-    uiComponent(props) {
+    inputComponent(props) {
         return (
             <Form.Control size="sm" className={this.align} type="text" {...props}></Form.Control>
         )
@@ -74,24 +70,25 @@ export class rsFloat extends rsNumber {
     }
 }
 
-const globalTypes = {
-    'OptionalString': new rsString({
-        isRequired: false,
-    }),
-    'String': new rsString({}),
-    'Float': new rsFloat({}),
+export const stringType = new rsString({
+    isRequired: true
+})
+
+export const optionalStringType = new rsString({
+    isRequired: false
+})
+
+export const floatType = new rsFloat({});
+
+export const globalTypes = {
+    'OptionalString': optionalStringType,
+    'String': stringType,
+    'Float': floatType,
 }
 
-const enumTypeOf = (enumSchema) => {
-    const allowedValues = enumSchema.map(v => {
-        const [value, displayName] = v;
-        return {
-            value,
-            displayName
-        }
-    });
+export function enumTypeOf(allowedValues) {
     return new (class extends rsType {
-        uiComponent(props) {
+        inputComponent(props) {
             const options = allowedValues.map(allowedValue => (
                 <option key={allowedValue.value} value={allowedValue.value}>{allowedValue.displayName}</option>
             ));
@@ -103,26 +100,4 @@ const enumTypeOf = (enumSchema) => {
             return this.hasValue(value) && allowedValues.filter(av => av.value == value).length > 0;
         };
     })({});
-}
-
-export class Types {
-    constructor(schema) {
-        this.schema = schema;
-    }
-    fieldTypeFromName = (name) => {
-        if (! globalTypes[name]) {
-            if (! this.schema.enum[name]) {
-                throw Error('unknown type: ' + name);
-            }
-            this.registerFieldType(name, enumTypeOf(this.schema.enum[name]));
-        }
-        return globalTypes[name];
-    }
-    // allow apps to register arbitrary types, ex. elegant's Float6StringArray
-    registerFieldType = (name, fieldType) => {
-        if (globalTypes[name]) {
-            throw Error('type already registered:' + name);
-        }
-        globalTypes[name] = fieldType;
-    }
 }
