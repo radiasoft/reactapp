@@ -65,23 +65,21 @@ let models = {
 
 let dogView = {
     title: 'Dog',
-    visual: { // TODO name this report or keep name visual?
-        type: 'editor',
-        config: {
-            basicFields: [
-                "dog.breed",
-                "dog.weight",
-                "dog.height",
-                "dog.disposition",
-                "dog.favoriteTreat"
-            ],
-            advancedFields: [
-                "dog.breed",
-                "dog.gender",
-                "dog.weight",
-                "dog.height"
-            ]
-        }
+    type: 'editor',
+    config: {
+        basicFields: [
+            "dog.breed",
+            "dog.weight",
+            "dog.height",
+            "dog.disposition",
+            "dog.favoriteTreat"
+        ],
+        advancedFields: [
+            "dog.breed",
+            "dog.gender",
+            "dog.weight",
+            "dog.height"
+        ]
     }
 }
 
@@ -92,12 +90,10 @@ let dogView2 = {
 
 let heightWeightReportView = {
     title: 'Physical Characteristics',
-    visual: {
-        type: 'graph2d',
-        config: {
-            x: 'dog.weight',
-            y: 'dog.height'
-        }
+    type: 'graph2d',
+    config: {
+        x: 'dog.weight',
+        y: 'dog.height'
     }
 }
 

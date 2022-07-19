@@ -28,15 +28,6 @@ import { EditorPanel } from "../components/panel";
 import { ViewGrid } from "../components/simulation";
 import Schema from './schema'
 
-let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
-    const valid = type.validate(model[fieldName])
-    return {
-        valid: valid,
-        value: valid ? model[fieldName] : "",
-        touched: false,
-    }
-})
-
 const ContextReduxFormActions = React.createContext();
 const ContextReduxFormSelectors = React.createContext();
 const ContextReduxModelActions = React.createContext();
@@ -182,6 +173,14 @@ class FormController {
     isFormStateValid = () => !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
 }
 
+let mapDependencyNameToParts = (dep) => {
+    let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
+    return {
+        modelName,
+        fieldName
+    }
+}
+
 class DependencyCollector {
     constructor({ modelActions, modelSelectors, schema }) {
         this.models = {};
@@ -212,15 +211,7 @@ class DependencyCollector {
     }
 
     hookModelDependency = (depString) => {
-        let mapDep = (dep) => {
-            let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
-            return {
-                modelName,
-                fieldName
-            }
-        }
-    
-        let { modelName, fieldName } = mapDep(depString);
+        let { modelName, fieldName } = mapDependencyNameToParts(depString);
     
         let model = this.getModel(modelName);
         let fieldSchema = model.schema[fieldName];
@@ -268,9 +259,9 @@ const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
                         field.updateValue(nextValue);
                     }
                 }
-                let InputComponent = field.type.component;
+                let InputComponent = field.dependency.type.component;
                 return (
-                    <FormField label={field.displayName} tooltip={field.description} key={field.fieldName}>
+                    <FormField label={field.dependency.displayName} tooltip={field.dependency.description} key={field.dependency.fieldName}>
                         <InputComponent
                             valid={field.value.valid}
                             touched={field.value.touched}
@@ -301,21 +292,42 @@ const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
     return SchemaEditorPanelComponent;
 } 
 
-const FormStateInitializer = ({ viewInfos }) => (child) => {
+const FormStateInitializer = ({ schema }) => (child) => {
+    let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
+        const valid = type.validate(model[fieldName])
+        return {
+            valid: valid,
+            value: valid ? model[fieldName] : "",
+            touched: false,
+        }
+    })
+
     let FormStateInitializerComponent = (props) => {
         let dispatch = useDispatch();
         let store = useStore();
-        let models = selectModels(store.getState());
         let hasInit = useSetup(true, (finishInitFormState) => {
-            for(const viewInfo of Object.values(viewInfos)) {
-                dispatch(updateFormState({ name: viewInfo.modelName, value: formStateFromModel(models[viewInfo.modelName], viewInfo.modelSchema) }));
-            }
+            let models = selectModels(store.getState());
+
+            Object.entries(models).forEach(([ modelName, model ]) => {
+                if( modelName in schema.models ) { // TODO non-model data should not be stored with models in store
+                    dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, schema.models[modelName])})) // TODO automate this
+                }
+            })
+
             finishInitFormState();
         })
         let ChildComponent = child;
         return hasInit && <ChildComponent {...props}/>;
     }
     return FormStateInitializerComponent;
+}
+
+const MissingComponentPlaceholder = (props) => {
+    return (
+        <div>
+            Missing Component Builder!
+        </div>
+    )
 }
 
 class AppViewBuilder{
@@ -326,7 +338,13 @@ class AppViewBuilder{
     }
 
     buildComponentForView = (viewInfo) => {
-        return this.components[viewInfo.visual?.type || 'editor'](viewInfo);
+        let componentBuilder = this.components[viewInfo.view.type || 'editor'];
+
+        if(!componentBuilder) {
+            return MissingComponentPlaceholder;
+        }
+
+        return componentBuilder(viewInfo);
     }
 }
 
@@ -359,7 +377,7 @@ function buildAppComponentsRoot(schema) {
             ReduxModelSelectorsContextWrapper.toComponent(
                 ReduxFormActionsContextWrapper.toComponent(
                     ReduxFormSelectorsContextWrapper.toComponent(
-                        FormStateInitializer({ viewInfos })(
+                        FormStateInitializer({ viewInfos, schema })(
                             () => {
                                 return (
                                     <ViewGrid views={Object.values(viewComponents)}>
