@@ -32,6 +32,8 @@ const ContextReduxFormActions = React.createContext();
 const ContextReduxFormSelectors = React.createContext();
 const ContextReduxModelActions = React.createContext();
 const ContextReduxModelSelectors = React.createContext();
+const ContextSimulationList = React.createContext();
+const _ContextSimulationSchema = React.createContext();
 
 const ReduxFormActionsContextWrapper = new ContextWrapperComponentBuilder()
     .providingContext(ContextReduxFormActions, () => {
@@ -333,6 +335,52 @@ const FormStateInitializer = ({ schema }) => (child) => {
     return FormStateInitializerComponent;
 }
 
+
+
+const SimulationListInitializer = () => {
+    let SimulationListWrapperBuilder = new ContextWrapperComponentBuilder()
+                    .providingContext(ContextSimulationList, (props) => props.simulationList);
+
+    let SimulationListInitializerComponentBuilder = (child) => {
+        let SimulationListInitializerComponent = (props) => {
+            let [simulationList, updateSimulationList] = useState(undefined);
+
+            let hasRetrievedSimulationList = useSetup(true, (finishRetrieveSimulationList) => {
+                fetch('http://localhost:3000/simulation-list', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        search: {
+                            simulationType: 'myapp', // TODO this will be dynamic and cause this component to update
+                            'simulation.folder': '/'
+                        },
+                        simulationType: 'myapp'
+                    })
+                }).then(resp => {
+                    let simulationList = resp.json();
+                    updateSimulationList(simulationList);
+                    finishRetrieveSimulationList();
+                })
+            })
+
+            let ChildComponent = child;
+
+            let newProps = {...props, simulationList};
+
+            return hasRetrievedSimulationList && <ChildComponent {...newProps}/>
+        }
+
+        return SimulationListInitializerComponent;
+    }
+
+    return (child) => {
+        let SimulationListContextWrapperComponent = SimulationListInitializerComponentBuilder(SimulationListWrapperBuilder.toComponent(child));
+        
+        return (props) => (
+            <SimulationListContextWrapperComponent {...props}/>
+        )
+    }
+}
+
 const MissingComponentPlaceholder = (props) => {
     return (
         <div>
@@ -380,17 +428,19 @@ function buildAppComponentsRoot(schema) {
             )
         }
     ).toComponent(
-        ReduxModelActionsContextWrapper.toComponent(
-            ReduxModelSelectorsContextWrapper.toComponent(
-                ReduxFormActionsContextWrapper.toComponent(
-                    ReduxFormSelectorsContextWrapper.toComponent(
-                        FormStateInitializer({ viewInfos, schema })(
-                            () => {
-                                return (
-                                    <ViewGrid views={Object.values(viewComponents)}>
-                                    </ViewGrid>
-                                )
-                            }
+        SimulationListInitializer()(
+            ReduxModelActionsContextWrapper.toComponent(
+                ReduxModelSelectorsContextWrapper.toComponent(
+                    ReduxFormActionsContextWrapper.toComponent(
+                        ReduxFormSelectorsContextWrapper.toComponent(
+                            FormStateInitializer({ viewInfos, schema })(
+                                () => {
+                                    return (
+                                        <ViewGrid views={Object.values(viewComponents)}>
+                                        </ViewGrid>
+                                    )
+                                }
+                            )
                         )
                     )
                 )
@@ -416,7 +466,15 @@ const AppRoot = (props) => {
         }
     )
 
-    if(hasSchema) {
+    const hasMadeHomepageRequest = useSetup(true,
+        (finishHomepageRequest) => {
+            fetch('http://localhost:3000/myapp').then(() => {
+                finishHomepageRequest();
+            });
+        }
+    )
+
+    if(hasSchema && hasMadeHomepageRequest) {
         let AppChild = buildAppComponentsRoot(schema);
         return (
             <Provider store={formStateStore}>
