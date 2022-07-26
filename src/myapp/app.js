@@ -27,6 +27,7 @@ import { ComponentBuilder, ConditionalComponentBuilder, ContextWrapperComponentB
 import { EditorPanel } from "../components/panel";
 import { ViewGrid } from "../components/simulation";
 import Schema from './schema'
+import { Graph2d } from "../visual";
 
 const ContextReduxFormActions = React.createContext();
 const ContextReduxFormSelectors = React.createContext();
@@ -392,7 +393,8 @@ const MissingComponentPlaceholder = (props) => {
 class AppViewBuilder{
     constructor (appInfo) { 
         this.components = {
-            'editor': SchemaEditorPanel(appInfo)
+            'editor': SchemaEditorPanel(appInfo),
+            'graph2d': () => Graph2d
         }
     }
 

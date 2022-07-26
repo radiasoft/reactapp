@@ -1,210 +1,175 @@
-import { interpolateInferno } from 'd3'
+import { Zoom } from '@visx/zoom';
+import { localPoint } from '@visx/event';
 import React, { useRef, useEffect, useState, useLayoutEffect } from 'react'
-import ReactDOM from 'react-dom'
 import { v4 as uuid4v } from 'uuid'
+import { Axis, ClipPath, Point, Scale, Shape } from '@visx/visx';
 
-function makeRandomData(width) {
-    return Array(width * width).fill(0).map(() => Math.random());
+function makeRandomData(width, height) {
+    return Array(width * height).fill(0).map(() => Math.random());
 }
 
-function calculateNextViewScale(viewScale, scrollFactor, deltaY) {
-    viewScale += (scrollFactor * deltaY);
-    return Math.max(.1, Math.min(1, viewScale));
-}
-
-const usePortal = (getElementFn, children) => {
-    const [element, updateElement] = useState(undefined);
-    useLayoutEffect(() => {
-        const tempElement = getElementFn();
-        updateElement(tempElement);
-    }, [false])
-    if(element) {
-        ReactDOM.createPortal(children, element);
-    }
-}
-
-function Visuals(props) {
-    const { width } = props;
-    const [data, updateData] = useState(() => makeRandomData(width));
-    const passedProps = {data, ...props};
-    /*return (
-        <div>
-            <VisualB {...passedProps}>
-
-            </VisualB>
-        </div>
-    )*/
-    return <Root/>
-}
-
-function VisualA(props) {
-    const { imageWidth, imageHeight, scrollFactor } = props;
-    const [viewScale, updateViewScale] = useState(1);
-    const scroll = event => {
-        const nextViewScale = calculateNextViewScale(viewScale, scrollFactor, event.deltaY);
-        updateViewScale(nextViewScale);
-    }
-    return (
-        <div className="sr-visual-outer" style={{
-            color: 'red',
-            width: `${imageWidth}px`, 
-            height: `${imageHeight}px`, 
-            border: "1px solid black"
-        }} onWheel={scroll}>
-            <svg width={imageWidth} height={imageHeight} viewBox={`${0} ${0} ${imageWidth * viewScale} ${imageHeight * viewScale}`}>
-            <VisualInnerCanvas {...props}></VisualInnerCanvas>
-            </svg>
-        </div>
+/**
+ * Zooms "towards" given point
+ * @param {d3.ZoomTransform} currentTransform existing zoom transform
+ * @param {[number, number]} point point to zoom around
+ * @param {number} newScale next zoom scale
+ * @return {d3.ZoomTransform} next zoom transform
+ */
+/*function applyZoomScaleAroundPoint(currentTransform, [ x, y ], newScale) {
+    let scaleDiff = newScale - currentTransform.k
+    currentTransform = currentTransform.translate(
+        -(x * scaleDiff),
+        -(y * scaleDiff)
     )
+    currentTransform = currentTransform.scale(newScale);
+    return currentTransform;
 }
 
-function ZoomSvgWrapper(props) {
-    const { imageWidth, imageHeight, scrollFactor, ...passedProps } = props;
-    console.log("ZOOM RENDER");
-    const [viewScale, updateViewScale] = useState(1);
-    const scroll = event => {
-        const nextViewScale = calculateNextViewScale(viewScale, scrollFactor, event.deltaY);
-        updateViewScale(nextViewScale);
+// TODO separate zooming math from <g> formatting component
+let VisualZoom = (props) => {
+    let { scrollFactor } = props;
+
+    let [zoomTransform, updateZoomTransform] = useState(zoomIdentity);
+
+    let calculateNextViewScale = (currentScale, scrollFactor, delta) => {
+        return currentScale * (1 - (scrollFactor * delta));
     }
+
+    const scroll = event => {
+        const nextViewScale = calculateNextViewScale(zoomTransform.k, scrollFactor, event.deltaY);
+        updateZoomTransform(zoomTransform.scale(nextViewScale));
+    }
+
+    let transform = `
+        translate(${zoomTransform.x} ${zoomTransform.y})
+        scale(${zoomTransform.k} ${zoomTransform.k})
+    `
+
     return (
-        <svg onWheel={scroll} width={imageWidth} height={imageHeight} viewBox={`${0} ${0} ${imageWidth * viewScale} ${imageHeight * viewScale}`} {...passedProps}>
+        <g onWheel={scroll} transform={transform}>
             {props.children}
-        </svg>
+        </g>
     )
-}
+}*/
 
-function PortalUser(props) {
-    const { containerId } = props;
-    usePortal(() => {
-        return document.getElementById(containerId);
-    }, props.children);
+function Child(props) {
+    let [r, updateR] = useState(() => uuid4v())
 
-    return <></>
-}
-
-function ZoomableSvg(props) {
-    const [id, updateId] = useState(() => uuid4v());
-    const { imageWidth, imageHeight, scrollFactor } = props;
     return (
-        <svg width={imageWidth} height={imageHeight} viewBox={`${0} ${0} ${imageWidth} ${imageHeight}`} xmlns="http://www.w3.org/2000/svg">
-            
-            <ZoomSvgWrapper id={id} imageWidth={imageWidth} imageHeight={imageHeight} scrollFactor={scrollFactor}>
+        <>
+            <text x={0} y={150}>
                 {props.children}
-            </ZoomSvgWrapper>
-        </svg>
-    ) 
-}
-
-function VisualB(props) {
-    const {width,...passedProps} = props;
-    const [state, updateState] = useState(undefined);
-    useEffect(() => {
-        setTimeout(() => {
-            updateState({});
-        }, 1000)
-    })
-    return (
-        <ZoomableSvg {...passedProps}>
-            <VisualInnerCanvas {...props}></VisualInnerCanvas>
-        </ZoomableSvg>
+            </text>
+            <text x={0} y={300}>
+                {r}
+            </text>
+        </>
     )
 }
 
-function VisualInnerRects(props) {
-    console.log("VISUAL INNER RENDER");
-    const { data, width, imageWidth, imageHeight } = props;
-    const u = 1.0 / width;
-    const squares = data.map((v, i) => {
-        const x = i % width;
-        const y = Math.floor(i / width);
-        return <rect x={x * u} y={y * u} width={u} height={u} fill={interpolateInferno(v)}></rect>
-    })
+/**
+ * 
+ * @param {{
+ *   x: [number],
+ *   y: [number] | [[number]]
+ * }} props 
+ * @returns 
+ */
+export let Graph2d = (props) => {
+    let { width, height, x, y } = props;
+
+    let xAxisSize = 30;
+    let yAxisSize = 30;
+
+    let margin = 10;
+
+    let graphHeight = height - xAxisSize - margin * 2;
+    let graphWidth = width - yAxisSize - margin * 2;
+
+    if(!Array.isArray(y)) {
+        y = [];
+    } else if(y.length > 0 && !Array.isArray(y[0])) {
+        y = [y];
+    }
+
+    let min = (prev, current) => Math.min(prev, current);
+    let max = (prev, current) => Math.max(prev, current);
+
+    let xMin = x.reduce(min)
+    let xMax = x.reduce(max);
+
+    let yMin = y.map(subArr => subArr.reduce(min)).reduce(min)
+    let yMax = y.map(subArr => subArr.reduce(max)).reduce(max)
+
+    let xScale = Scale.scaleLinear({
+        domain: [xMin, xMax],
+        range: [0, graphWidth],
+        round: true
+    });
+
+    let yScale = Scale.scaleLinear({
+        domain: [yMin, yMax],
+        range: [0, graphHeight],
+        round: true
+    });
+
+    let toPath = (x, y, index) => {
+        let data = x.map((v, i) => {return {x:v, y:y[i]}})
+        return (
+        <Shape.LinePath key={index} data={data} x={d => xScale(d.x)} y={d => yScale(d.y)} stroke={"red"}>
+            
+        </Shape.LinePath>
+        )
+    }
+
+    let paths = y.map((subArr, i) => toPath(x, subArr, i));
+
+    let graphX = yAxisSize + margin;
+    let graphY = margin;
+
     return (
-        <svg width={imageWidth} height={imageHeight} viewBox={`${0} ${0} ${1} ${1}`}>
-            {squares}
-        </svg>
+        
+            <Zoom
+            
+            height={height} 
+            width={width}
+            scaleXMax={2}
+            scaleXMin={1/2}
+            scaleYMax={2}
+            scaleYMin={1/2}
+            
+            
+            >
+                {(zoom) => {
+                    return (
+                        <svg
+                        height={height}
+                        width={width}
+                        ref={zoom.containerRef}
+                        style={{'textSelect': 'none', 'cursor': 'default'}}
+                        >
+                            <ClipPath.RectClipPath id={"graph-clip"} width={graphWidth} height={graphHeight}/>
+                            <g transform={`translate(${graphX} ${graphY})`} width={graphWidth} height={graphHeight}>
+                                <Axis.AxisBottom
+                                    stroke={"#888"}
+                                    tickStroke={"#888"}
+                                    scale={xScale}
+                                    top={graphHeight}
+                                />
+                                <Axis.AxisLeft
+                                    stroke={"#888"}
+                                    tickStroke={"#888"}
+                                    scale={yScale}
+                                />
+                                <g clipPath="url(#graph-clip)">
+                                    <g transform={zoom.toString()} >
+                                        {paths}
+                                    </g>
+                                </g>
+                            </g>
+                        </svg>
+                    )
+                }}
+            </Zoom>
     )
-}
-
-function VisualInnerCanvas(props) {
-    console.log("VISUAL INNER RENDER");
-    const { data, width, imageWidth, imageHeight } = props;
-    const u = 10;
-
-    const ref = useRef(null);
-
-    useEffect(() => {
-        console.log("DRAWING");
-        const canvas = ref.current;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        data.forEach((v, i) => {
-            const x = i % width;
-            const y = Math.floor(i / width);
-            ctx.fillStyle = interpolateInferno(v);
-            ctx.fillRect(x * u, y * u, u, u);
-        });
-    }, data);
-
-    return (
-        <svg width={imageWidth} height={imageHeight} viewBox={`0 0 ${imageWidth} ${imageHeight}`} xmlns="http://www.w3.org/2000/svg">
-            <foreignObject x={0} y={0} width={imageWidth} height={imageHeight}>
-                <div style={{position: 'relative', height: '100%', width: '100%'}} xmlns="http://www.w3.org/1999/xhtml">
-                    <canvas width={width * u} height={width * u} ref={ref} style={{position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', border: '1px solid #000'}} />
-                </div>
-                
-            </foreignObject>
-        </svg>
-    )
-}
-
-function Root(props) {
-    
-    console.log("Root render");
-    return (
-        <X>
-            <Y>
-                <Z>
-
-                </Z>
-            </Y>
-        </X>
-    )
-}
-
-function X(props) {
-    const [s, updateS] = useState({});
-    useEffect(() => {
-        setTimeout(() => {
-            updateS({})
-        }, 1000)
-    })
-    console.log("X render");
-    return (
-        <div>
-            <>X Element</>
-            {props.children}
-        </div>
-    )
-}
-
-function Y(props) {
-    console.log("Y render");
-    return (
-        <>Y Element</>
-    )
-}
-
-function Z(props) {
-    console.log("Z render");
-    return (
-        <>Z Element</>
-    )
-}
-
-export {
-    makeRandomData,
-    Visuals,
-    VisualA,
-    VisualB
 }
