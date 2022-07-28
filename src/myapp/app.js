@@ -336,7 +336,33 @@ const FormStateInitializer = ({ schema }) => (child) => {
     return FormStateInitializerComponent;
 }
 
-
+const pollRunSimulation = ({ models, simulationId, report, pollInterval}) => {
+    return new Promise((resolve, reject) => {
+        let doFetch = () =>
+            fetch('/run-simulation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    models,
+                    forceRun: false,
+                    report,
+                    simulationId,
+                    simulationType: 'myapp' // TODO: make dyanmic
+                })
+            }).then(resp => {
+                let { status } = resp;
+                if(status == 'completed') {
+                    resolve(resp.json());
+                } else if (status == 'pending') {
+                    setTimeout(doFetch, pollInterval);
+                } else {
+                    reject();
+                }
+            })
+    })
+} 
 
 const SimulationListInitializer = () => {
     let SimulationListWrapperBuilder = new ContextWrapperComponentBuilder()
@@ -347,19 +373,65 @@ const SimulationListInitializer = () => {
             let [simulationList, updateSimulationList] = useState(undefined);
 
             let hasRetrievedSimulationList = useSetup(true, (finishRetrieveSimulationList) => {
-                fetch('http://localhost:3000/simulation-list', {
+                fetch('/simulation-list', {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
-                        search: {
-                            simulationType: 'myapp', // TODO this will be dynamic and cause this component to update
-                            'simulation.folder': '/'
-                        },
                         simulationType: 'myapp'
                     })
                 }).then(resp => {
                     let simulationList = resp.json();
-                    updateSimulationList(simulationList);
-                    finishRetrieveSimulationList();
+                    let simulation = simulationList[0];
+                    let { simulationId, name } = simulation;
+                    let simulationInfo = simulation.simulation;
+                    fetch(`/simulation/myapp/${simulationId}/0/source`).then(resp => {
+                        let { models, simulationType, version } = resp.json();
+                        // TODO: use models
+
+                        pollRunSimulation({
+                            models,
+                            simulationId,
+                            report: 'heightWeightReport', // TODO: make dynamic,
+                            pollInterval: 500
+                        }).then(({ 
+                            plots, 
+                            title, 
+                            x_label: xLabel, 
+                            x_points: xPoints, 
+                            x_range: xRange,
+                            y_range: yRange,
+                            y_label: yLabel
+                        }) => {
+                            let tempPlots = plots.map(({ color, label, points }) => {
+                                let tempPoints = points.map((y, i) => { return { x: xPoints[i], y } })
+                                return {
+                                    color,
+                                    label,
+                                    points: tempPoints
+                                }
+                            });
+
+                            let [xMin, xMax] = xRange;
+                            let [yMin, yMax] = yRange;
+
+                            let graphConfig = {
+                                title,
+                                plots: tempPlots,
+                                xLabel,
+                                yLabel,
+                                xRange: {
+                                    min: xMin,
+                                    max: xMax
+                                },
+                                yRange: {
+                                    min: yMin,
+                                    max: yMax
+                                }
+                            }
+                        })
+                    })
                 })
             })
 
@@ -394,7 +466,7 @@ class AppViewBuilder{
     constructor (appInfo) { 
         this.components = {
             'editor': SchemaEditorPanel(appInfo),
-            'graph2d': () => Graph2d
+            '-graph2d': () => Graph2d
         }
     }
 
@@ -470,7 +542,7 @@ const AppRoot = (props) => {
 
     const hasMadeHomepageRequest = useSetup(true,
         (finishHomepageRequest) => {
-            fetch('http://localhost:3000/myapp').then(() => {
+            fetch('/auth-guest-login/myapp').then(() => {
                 finishHomepageRequest();
             });
         }
