@@ -4,7 +4,7 @@ import * as Icon from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 export function Panel(props) {
-    const {title, buttons, viewInfo, panelBodyShown, ...otherProps} = props;
+    let {title, buttons, panelBodyShown, ...otherProps} = props;
     return (
         <Card>
             <Card.Header className="lead bg-info bg-opacity-25">

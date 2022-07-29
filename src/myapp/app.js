@@ -1,6 +1,6 @@
 // import {React}
 import React, { useContext, useEffect, useState } from "react";
-import { Button, Col, Container, Row } from "react-bootstrap";
+import { Button, Col } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, Provider, useSelector, useStore } from "react-redux";
 import { useSetup } from "../hooks";
@@ -11,334 +11,32 @@ import {
     selectIsLoaded,
     updateModel,
     selectModels,
-} from "./models";
+} from "../models";
 import { mapProperties } from '../helper'
-import { FormField } from "../components/form";
-
 import {
     selectFormState,
     updateFormState,
     updateFormFieldState,
     formStatesSlice
-} from './formState'
-
+} from '../formState'
 import "./myapp.scss"
-import { ComponentBuilder, ConditionalComponentBuilder, ContextWrapperComponentBuilder, InitializerComponentBuilder } from "../components/builder";
-import { EditorPanel } from "../components/panel";
 import { ViewGrid } from "../components/simulation";
 import Schema from './schema'
-import { Graph2d } from "../visual";
-
-const ContextReduxFormActions = React.createContext();
-const ContextReduxFormSelectors = React.createContext();
-const ContextReduxModelActions = React.createContext();
-const ContextReduxModelSelectors = React.createContext();
-const ContextSimulationList = React.createContext();
-const _ContextSimulationSchema = React.createContext();
-
-const ReduxFormActionsContextWrapper = new ContextWrapperComponentBuilder()
-    .providingContext(ContextReduxFormActions, () => {
-        return {
-            updateFormState,
-            updateFormFieldState
-        }
-    })
-
-const ReduxFormSelectorsContextWrapper= new ContextWrapperComponentBuilder()
-    .providingContext(ContextReduxFormSelectors, () => {
-        return {
-            selectFormState
-        }
-    })
-
-const ReduxModelActionsContextWrapper = new ContextWrapperComponentBuilder()
-    .providingContext(ContextReduxModelActions, () => {
-        return {
-            updateModel
-        }
-    })
-
-const ReduxModelSelectorsContextWrapper = new ContextWrapperComponentBuilder()
-    .providingContext(ContextReduxModelSelectors, () => {
-        return {
-            selectModel,
-            selectModels
-        }
-    })
-
-const RequiresIsLoadedBuilder = new ConditionalComponentBuilder()
-    .usingSelector('isLoaded', () => selectIsLoaded)
-    .usingConditional(({ isLoaded }) => isLoaded)
-
-
-let formStateFromModel = (model, modelSchema) => mapProperties(modelSchema, (fieldName, { type }) => {
-    const valid = type.validate(model[fieldName])
-    return {
-        valid: valid,
-        value: valid ? model[fieldName] : "",
-        touched: false,
-        active: true
-    }
-})
-
-class FormController {
-    constructor({ formActions, formSelectors }) {
-        this.formActions = formActions;
-        this.formSelectors = formSelectors;
-        this.models = {};
-        this.fields = [];
-    }
-
-    getModel = (modelName, dependency) => {
-        let selectFn = useSelector;
-        let dispatchFn = useDispatch;
-
-        let dispatch = dispatchFn();
-
-        let { selectFormState } = this.formSelectors;
-        let { updateFormState } = this.formActions;
-
-        if(!(modelName in this.models)) {
-            let model = {
-                dependency ,
-                value: {...selectFn(selectFormState(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
-                updateValue: (v) => dispatch(updateFormState({ name: modelName, value: v }))
-            }
-            this.models[modelName] = model;
-        }
-        return this.models[modelName];
-    }
-
-    getField = (dep) => {
-        let dispatchFn = useDispatch;
-
-        let dispatch = dispatchFn();
-
-        let { fieldName, modelName } = dep;
-        let { updateFormFieldState } = this.formActions;
-
-        let findField = (modelName, fieldName) => {
-            return this.fields.find((o) => {
-                return o.modelName == modelName && o.fieldName == fieldName;
-            })
-        }
-
-        var field = findField(modelName, fieldName);
-        if(!field) {
-            let model = this.getModel(modelName, dep.model);
-            let currentValue = model.value[fieldName];
-            field = {
-                fieldName,
-                modelName,
-                model,
-                value: currentValue,
-                dependency: dep,
-                updateValue: (v) => dispatch(updateFormFieldState({
-                    name: modelName,
-                    field: fieldName,
-                    value: { // TODO, value should be defined as the param to the function??
-                        value: v,
-                        valid: dep.type.validate(v),
-                        touched: true,
-                        active: currentValue.active
-                    }
-                })),
-                updateActive: (a) => dispatch(updateFormFieldState({
-                    name: modelName,
-                    field: fieldName,
-                    value: { // TODO, value should be defined as the param to the function??
-                        ...currentValue,
-                        active: a
-                    }
-                }))
-            }
-            this.fields.push(field);
-        }
-        return field;
-    }
-
-    hookField = (fieldModelDep) => {
-        return this.getField(fieldModelDep);
-    }
-
-    submitChanges = () => {
-        Object.entries(this.models).forEach(([modelName, model]) => {
-            let changesObj = mapProperties(model.value, (fieldName, fieldState) => fieldState.value);
-
-            let nextModelValue = {...model.dependency.value};
-            Object.assign(nextModelValue, changesObj);
-
-            model.dependency.updateValue(nextModelValue);
-            // this should make sure that if any part of the reducers are inconsistent / cause mutations
-            // then the form state should remain consistent with saved model copy
-            model.updateValue(formStateFromModel(model.dependency.value, model.dependency.schema)); 
-        })
-    }
-
-    cancelChanges = () => {
-        Object.entries(this.models).forEach(([modelName, model]) => {
-            model.updateValue(formStateFromModel(model.dependency.value, model.dependency.schema)); 
-        })
-    }
-
-    isFormStateDirty = () => {
-        let d = Object.values(this.fields).map(({ value: { active, touched } }) => active && touched).includes(true);
-        return d;
-    }
-    isFormStateValid = () => {
-        let v = !Object.values(this.fields).map(({ value: { active, valid } }) => !active || valid).includes(false); // TODO: check completeness (missing defined variables?)
-        return v;
-    }
-}
-
-let mapDependencyNameToParts = (dep) => {
-    let [modelName, fieldName] = dep.split('.').filter(s => s && s.length > 0);
-    return {
-        modelName,
-        fieldName
-    }
-}
-
-class DependencyCollector {
-    constructor({ modelActions, modelSelectors, schema }) {
-        this.models = {};
-        this.modelActions = modelActions;
-        this.modelSelectors = modelSelectors;
-        this.schema = schema
-    }
-
-    getModel = (modelName) => {
-        let selectFn = useSelector;
-        let dispatchFn = useDispatch;
-        let storeFn = useStore;
-
-        let dispatch = dispatchFn();
-        let store = storeFn();
-
-        let { updateModel } = this.modelActions;
-        let { selectModel } = this.modelSelectors;
-
-        if (!(modelName in this.models)) {
-            let model = {
-                schema: this.schema.models[modelName],
-                value: {...selectFn(selectModel(modelName))}, // TODO evaluate this clone, it feels like its needed to be safe
-                updateValue: (v) => {
-                    dispatch(updateModel({ name: modelName, value: v }));
-                    model.value = {...selectModel(modelName)(store.getState())} // TODO this is janky
-                }
-            }
-            this.models[modelName] = model;
-        }
-
-        return this.models[modelName];
-    }
-
-    hookModelDependency = (depString) => {
-        let { modelName, fieldName } = mapDependencyNameToParts(depString);
-    
-        let model = this.getModel(modelName);
-        let fieldSchema = model.schema[fieldName];
-
-        return {
-            modelName,
-            fieldName,
-            model,
-            displayName: fieldSchema.name,
-            type: fieldSchema.type,
-            defaultValue: fieldSchema.defaultValue,
-            description: fieldSchema.description,
-            value: model.value[fieldName]
-        }
-    }
-}
-
-// TODO: build this call from schema
-const SchemaEditorPanel = ({ schema }) => ({ view, viewName }) => {
-    let SchemaEditorPanelComponent = (props) => {
-        let formActions = useContext(ContextReduxFormActions); // TODO: make these generic
-        let formSelectors = useContext(ContextReduxFormSelectors);
-        let modelActions = useContext(ContextReduxModelActions);
-        let modelSelectors = useContext(ContextReduxModelSelectors);
-
-        let depCollector = new DependencyCollector({ modelActions, modelSelectors, schema });
-        let formController = new FormController({ formActions, formSelectors });
-
-        let collectModelField = (depStr) => depCollector.hookModelDependency(depStr);
-        let hookFormField = (dep) => formController.hookField(dep);
-
-        let configFields = {
-            basic: view.config.basicFields,
-            advanced: view.config.advancedFields
-        }
-
-        let modelFields = mapProperties(configFields, (subviewName, depStrs) => depStrs.map(collectModelField));
-        let formFields = mapProperties(modelFields, (subviewName, deps) => deps.map(hookFormField));
-    
-        let createFieldElementsForSubview = (subviewName) => {
-            return (formFields[subviewName] || []).map(field => {
-                const onChange = (event) => {
-                    let nextValue = event.target.value;
-                    if(field.value.value != nextValue) { // TODO fix field.value.value naming
-                        field.updateValue(nextValue);
-                    }
-                }
-                let InputComponent = field.dependency.type.component;
-                return (
-                    <FormField label={field.dependency.displayName} tooltip={field.dependency.description} key={field.dependency.fieldName}>
-                        <InputComponent
-                            valid={field.value.valid}
-                            touched={field.value.touched}
-                            value={field.value.value}
-                            onChange={onChange}
-                        />
-                    </FormField>
-                )
-            })
-        }
-
-        let formProps = {
-            submit: formController.submitChanges,
-            cancel: formController.cancelChanges,
-            showButtons: formController.isFormStateDirty(),
-            formValid: formController.isFormStateValid(),
-            mainChildren: createFieldElementsForSubview('basic'),
-            modalChildren: createFieldElementsForSubview('advanced'),
-            title: view.title || viewName,
-            id: viewName
-        }
-
-        return (
-            <EditorPanel {...formProps}>
-            </EditorPanel>
-        )
-    }
-    return SchemaEditorPanelComponent;
-} 
-
-const FormStateInitializer = ({ schema }) => (child) => {
-    let FormStateInitializerComponent = (props) => {
-        let dispatch = useDispatch();
-        let store = useStore();
-        let hasInit = useSetup(true, (finishInitFormState) => {
-            let models = selectModels(store.getState());
-
-            Object.entries(models).forEach(([ modelName, model ]) => {
-                if( modelName in schema.models ) { // TODO non-model data should not be stored with models in store
-                    dispatch(updateFormState({ name: modelName, value: formStateFromModel(model, schema.models[modelName])})) // TODO automate this
-                }
-            })
-
-            finishInitFormState();
-        })
-        let ChildComponent = child;
-        return hasInit && <ChildComponent {...props}/>;
-    }
-    return FormStateInitializerComponent;
-}
+import { Graph2dFromApi } from "../components/graph2d";
+import { SchemaEditorPanel, FormStateInitializer } from "../components/form";
+import { 
+    ContextReduxFormActions, 
+    ContextReduxFormSelectors, 
+    ContextReduxModelActions, 
+    ContextReduxModelSelectors, 
+    ContextSimulationInfoPromise, 
+    ContextSimulationListPromise 
+} from '../components/context'
+import { Panel } from "../components/panel";
 
 const pollRunSimulation = ({ models, simulationId, report, pollInterval}) => {
     return new Promise((resolve, reject) => {
-        let doFetch = () =>
+        let doFetch = () => {
             fetch('/run-simulation', {
                 method: 'POST',
                 headers: {
@@ -351,28 +49,68 @@ const pollRunSimulation = ({ models, simulationId, report, pollInterval}) => {
                     simulationId,
                     simulationType: 'myapp' // TODO: make dyanmic
                 })
-            }).then(resp => {
-                let { status } = resp;
-                if(status == 'completed') {
-                    resolve(resp.json());
-                } else if (status == 'pending') {
-                    setTimeout(doFetch, pollInterval);
+            }).then(async (resp) => {
+                let simulationStatus = await resp.json();
+                console.log("status", simulationStatus);
+                let { state } = simulationStatus;
+                console.log("polled simulation: " + state);
+                if(state == 'completed') {
+                    resolve(simulationStatus);
+                } else if (state == 'pending') {
+                    //setTimeout(doFetch, pollInterval);
                 } else {
                     reject();
                 }
             })
+        }
+        doFetch();
     })
-} 
+}
 
-const SimulationListInitializer = () => {
-    let SimulationListWrapperBuilder = new ContextWrapperComponentBuilder()
-                    .providingContext(ContextSimulationList, (props) => props.simulationList);
+const SimulationInfoInitializer = (child) => {
+    return (props) => {
+        let contextFn = useContext;
+        let stateFn = useState;
+        let effectFn = useEffect;
 
-    let SimulationListInitializerComponentBuilder = (child) => {
-        let SimulationListInitializerComponent = (props) => {
-            let [simulationList, updateSimulationList] = useState(undefined);
+        let simulationListPromise = contextFn(ContextSimulationListPromise);
+        let [simulationInfoPromise, updateSimulationInfoPromise] = stateFn(undefined);
 
-            let hasRetrievedSimulationList = useSetup(true, (finishRetrieveSimulationList) => {
+        effectFn(() => {
+            updateSimulationInfoPromise(new Promise((resolve, reject) => {
+                simulationListPromise.then(simulationList => {
+                    let simulation = simulationList[0];
+                    let { simulationId } = simulation;
+                    fetch(`/simulation/myapp/${simulationId}/0/source`).then(async (resp) => {
+                        let simulationInfo = await resp.json();
+                        console.log("retrieved simulation info", simulationInfo);
+                        // TODO: use models
+                        resolve({...simulationInfo, simulationId});
+                    })
+                })
+            }))
+        }, [])
+
+        let ChildComponent = child;
+        return simulationInfoPromise && (
+            <ContextSimulationInfoPromise.Provider value={simulationInfoPromise}>
+                <ChildComponent {...props}>
+
+                </ChildComponent>
+            </ContextSimulationInfoPromise.Provider>
+        )
+    }
+}
+
+const SimulationListInitializer = (child) => {
+    return (props) => {
+        let stateFn = useState;
+        let effectFn = useEffect;
+
+        let [simulationListPromise, updateSimulationListPromise] = stateFn(undefined)
+
+        effectFn(() => {
+            updateSimulationListPromise(new Promise((resolve, reject) => {
                 fetch('/simulation-list', {
                     method: 'POST',
                     headers: {
@@ -381,75 +119,21 @@ const SimulationListInitializer = () => {
                     body: JSON.stringify({
                         simulationType: 'myapp'
                     })
-                }).then(resp => {
-                    let simulationList = resp.json();
-                    let simulation = simulationList[0];
-                    let { simulationId, name } = simulation;
-                    let simulationInfo = simulation.simulation;
-                    fetch(`/simulation/myapp/${simulationId}/0/source`).then(resp => {
-                        let { models, simulationType, version } = resp.json();
-                        // TODO: use models
-
-                        pollRunSimulation({
-                            models,
-                            simulationId,
-                            report: 'heightWeightReport', // TODO: make dynamic,
-                            pollInterval: 500
-                        }).then(({ 
-                            plots, 
-                            title, 
-                            x_label: xLabel, 
-                            x_points: xPoints, 
-                            x_range: xRange,
-                            y_range: yRange,
-                            y_label: yLabel
-                        }) => {
-                            let tempPlots = plots.map(({ color, label, points }) => {
-                                let tempPoints = points.map((y, i) => { return { x: xPoints[i], y } })
-                                return {
-                                    color,
-                                    label,
-                                    points: tempPoints
-                                }
-                            });
-
-                            let [xMin, xMax] = xRange;
-                            let [yMin, yMax] = yRange;
-
-                            let graphConfig = {
-                                title,
-                                plots: tempPlots,
-                                xLabel,
-                                yLabel,
-                                xRange: {
-                                    min: xMin,
-                                    max: xMax
-                                },
-                                yRange: {
-                                    min: yMin,
-                                    max: yMax
-                                }
-                            }
-                        })
-                    })
+                }).then(async (resp) => {
+                    console.log("retrieved simulation list");
+                    let simulationList = await resp.json();
+                    resolve(simulationList);
                 })
-            })
+            }))
+        }, [])
 
-            let ChildComponent = child;
+        let ChildComponent = child;
+        return simulationListPromise && (
+            <ContextSimulationListPromise.Provider value={simulationListPromise}>
+                <ChildComponent {...props}>
 
-            let newProps = {...props, simulationList};
-
-            return hasRetrievedSimulationList && <ChildComponent {...newProps}/>
-        }
-
-        return SimulationListInitializerComponent;
-    }
-
-    return (child) => {
-        let SimulationListContextWrapperComponent = SimulationListInitializerComponentBuilder(SimulationListWrapperBuilder.toComponent(child));
-        
-        return (props) => (
-            <SimulationListContextWrapperComponent {...props}/>
+                </ChildComponent>
+            </ContextSimulationListPromise.Provider>
         )
     }
 }
@@ -462,11 +146,52 @@ const MissingComponentPlaceholder = (props) => {
     )
 }
 
+let SimulationVisualWrapper = (visualName, title, visualComponent, passedProps) => {
+    return (props) => {
+        let contextFn = useContext;
+        let stateFn = useState;
+        let effectFn = useEffect;
+
+        let simulationInfoPromise = contextFn(ContextSimulationInfoPromise);
+
+        let [simulationData, updateSimulationData] = stateFn(undefined);
+
+        effectFn(() => {
+            let simulationDataPromise= new Promise((resolve, reject) => {
+                simulationInfoPromise.then(({ models, simulationId, simulationType, version }) => {
+                    console.log("starting to poll simulation");
+                    pollRunSimulation({
+                        models,
+                        simulationId,
+                        report: visualName,
+                        pollInterval: 500
+                    }).then((simulationData) => {
+                        console.log("finished polling simulation");
+                        resolve(simulationData);
+                    })
+                })
+            });
+    
+            simulationDataPromise.then(updateSimulationData);
+        }, [])
+
+        
+
+        let VisualComponent = simulationData ? visualComponent(simulationData) : undefined;
+
+        return (
+            <Panel title={title} panelBodyShown={true}>
+                {VisualComponent && <VisualComponent {...props} {...passedProps}></VisualComponent>}
+            </Panel>
+        )
+    }
+}
+
 class AppViewBuilder{
     constructor (appInfo) { 
         this.components = {
             'editor': SchemaEditorPanel(appInfo),
-            '-graph2d': () => Graph2d
+            'graph2d': (viewInfo) => SimulationVisualWrapper(viewInfo.viewName, viewInfo.view.title, Graph2dFromApi, { width: 500, height: 500 })
         }
     }
 
@@ -478,6 +203,33 @@ class AppViewBuilder{
         }
 
         return componentBuilder(viewInfo);
+    }
+}
+
+function LoadDataButton(props) {
+    let dispatch = useDispatch();
+    return (
+        <Col className="mt-3 ms-3">
+            <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
+        </Col>
+    )
+}
+
+let ReduxConstantsWrapper = (child) => {
+    return (props) => {
+        let ChildComponent = child;
+
+        return (
+            <ContextReduxModelActions.Provider value={{updateModel}}>
+                <ContextReduxModelSelectors.Provider value={{selectModel, selectModels}}>
+                    <ContextReduxFormActions.Provider value={{updateFormFieldState, updateFormState}}>
+                        <ContextReduxFormSelectors.Provider value={{selectFormState}}>
+                            <ChildComponent {...props}></ChildComponent>
+                        </ContextReduxFormSelectors.Provider>
+                    </ContextReduxFormActions.Provider>
+                </ContextReduxModelSelectors.Provider>
+            </ContextReduxModelActions.Provider>
+        )
     }
 }
 
@@ -493,33 +245,31 @@ function buildAppComponentsRoot(schema) {
     
     let viewComponents = mapProperties(viewInfos, (viewName, viewInfo) => viewBuilder.buildComponentForView(viewInfo));
 
-    return RequiresIsLoadedBuilder.usingDispatch('dispatch').elseComponent(
-        ({dispatch}) => {
-            return (
-                <Col className="mt-3 ms-3">
-                    <Button onClick={() => dispatch(loadModelData())}>Load Data</Button>
-                </Col>
-            )
-        }
-    ).toComponent(
-        SimulationListInitializer()(
-            ReduxModelActionsContextWrapper.toComponent(
-                ReduxModelSelectorsContextWrapper.toComponent(
-                    ReduxFormActionsContextWrapper.toComponent(
-                        ReduxFormSelectorsContextWrapper.toComponent(
-                            FormStateInitializer({ viewInfos, schema })(
-                                () => {
-                                    return (
-                                        <ViewGrid views={Object.values(viewComponents)}>
-                                        </ViewGrid>
-                                    )
-                                }
+    const RequiresIsLoaded = (componentIf, componentElse) => (props) => {
+        let selectorFn = useSelector;
+        let isLoaded = selectorFn(selectIsLoaded);
+        let ChildComponent = isLoaded ? componentIf : componentElse;
+        return (<>
+            {ChildComponent && <ChildComponent {...props}></ChildComponent>}
+        </>)
+    }
+
+    return RequiresIsLoaded(
+        SimulationListInitializer(
+            SimulationInfoInitializer(
+                ReduxConstantsWrapper(
+                    FormStateInitializer({ viewInfos, schema })(
+                        () => {
+                            return (
+                                <ViewGrid views={Object.values(viewComponents)}>
+                                </ViewGrid>
                             )
-                        )
+                        }
                     )
                 )
             )
-        )
+        ),
+        LoadDataButton
     )
 }
 
