@@ -191,7 +191,7 @@ class AppViewBuilder{
     constructor (appInfo) { 
         this.components = {
             'editor': SchemaEditorPanel(appInfo),
-            'graph2d': (viewInfo) => SimulationVisualWrapper(viewInfo.viewName, viewInfo.view.title, Graph2dFromApi, { width: 500, height: 500 })
+            'graph2d': (viewInfo) => SimulationVisualWrapper(viewInfo.viewName, viewInfo.view.title, Graph2dFromApi, { width: '100%', height: '100%' })
         }
     }
 
