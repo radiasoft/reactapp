@@ -1,5 +1,5 @@
 // import {React}
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Button, Col } from "react-bootstrap";
 import { configureStore } from "@reduxjs/toolkit";
 import { useDispatch, Provider, useSelector, useStore } from "react-redux";
@@ -25,6 +25,7 @@ import Schema from './schema'
 import { Graph2dFromApi } from "../components/graph2d";
 import { SchemaEditorPanel, FormStateInitializer } from "../components/form";
 import { 
+    ContextAppName,
     ContextReduxFormActions, 
     ContextReduxFormSelectors, 
     ContextReduxModelActions, 
@@ -34,7 +35,7 @@ import {
 } from '../components/context'
 import { Panel } from "../components/panel";
 
-const pollRunSimulation = ({ models, simulationId, report, pollInterval}) => {
+const pollRunSimulation = ({ appName, models, simulationId, report, pollInterval}) => {
     return new Promise((resolve, reject) => {
         let doFetch = () => {
             fetch('/run-simulation', {
@@ -47,7 +48,7 @@ const pollRunSimulation = ({ models, simulationId, report, pollInterval}) => {
                     forceRun: false,
                     report,
                     simulationId,
-                    simulationType: 'myapp' // TODO: make dyanmic
+                    simulationType: appName
                 })
             }).then(async (resp) => {
                 let simulationStatus = await resp.json();
@@ -72,27 +73,42 @@ const SimulationInfoInitializer = (child) => {
         let contextFn = useContext;
         let stateFn = useState;
         let effectFn = useEffect;
+        let dispatchFn = useDispatch;
 
         let simulationListPromise = contextFn(ContextSimulationListPromise);
+        let { updateModel } = contextFn(ContextReduxModelActions);
         let [simulationInfoPromise, updateSimulationInfoPromise] = stateFn(undefined);
+        let [hasInit, updateHasInit] = stateFn(false);
+        let appName = contextFn(ContextAppName);
+        let dispatch = dispatchFn();
 
         effectFn(() => {
             updateSimulationInfoPromise(new Promise((resolve, reject) => {
                 simulationListPromise.then(simulationList => {
                     let simulation = simulationList[0];
                     let { simulationId } = simulation;
-                    fetch(`/simulation/myapp/${simulationId}/0/source`).then(async (resp) => {
+                    fetch(`/simulation/${appName}/${simulationId}/0/source`).then(async (resp) => {
                         let simulationInfo = await resp.json();
+                        let { models } = simulationInfo;
                         console.log("retrieved simulation info", simulationInfo);
                         // TODO: use models
+
+                        for(let [modelName, model] of Object.entries(models)) {
+                            dispatch(updateModel({
+                                name: modelName,
+                                value: model
+                            }));
+                        }
+
                         resolve({...simulationInfo, simulationId});
+                        updateHasInit(true);
                     })
                 })
             }))
         }, [])
 
         let ChildComponent = child;
-        return simulationInfoPromise && (
+        return hasInit && simulationInfoPromise && (
             <ContextSimulationInfoPromise.Provider value={simulationInfoPromise}>
                 <ChildComponent {...props}>
 
@@ -106,8 +122,10 @@ const SimulationListInitializer = (child) => {
     return (props) => {
         let stateFn = useState;
         let effectFn = useEffect;
+        let contextFn = useContext;
 
         let [simulationListPromise, updateSimulationListPromise] = stateFn(undefined)
+        let appName = contextFn(ContextAppName);
 
         effectFn(() => {
             updateSimulationListPromise(new Promise((resolve, reject) => {
@@ -117,7 +135,7 @@ const SimulationListInitializer = (child) => {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        simulationType: 'myapp'
+                        simulationType: appName
                     })
                 }).then(async (resp) => {
                     console.log("retrieved simulation list");
@@ -153,6 +171,7 @@ let SimulationVisualWrapper = (visualName, title, visualComponent, passedProps) 
         let effectFn = useEffect;
 
         let simulationInfoPromise = contextFn(ContextSimulationInfoPromise);
+        let appName = contextFn(ContextAppName);
 
         let [simulationData, updateSimulationData] = stateFn(undefined);
 
@@ -161,6 +180,7 @@ let SimulationVisualWrapper = (visualName, title, visualComponent, passedProps) 
                 simulationInfoPromise.then(({ models, simulationId, simulationType, version }) => {
                     console.log("starting to poll simulation");
                     pollRunSimulation({
+                        appName,
                         models,
                         simulationId,
                         report: visualName,
@@ -254,10 +274,10 @@ function buildAppComponentsRoot(schema) {
         </>)
     }
 
-    return RequiresIsLoaded(
-        SimulationListInitializer(
-            SimulationInfoInitializer(
-                ReduxConstantsWrapper(
+    return ReduxConstantsWrapper(
+        RequiresIsLoaded(
+            SimulationListInitializer(
+                SimulationInfoInitializer(
                     FormStateInitializer({ viewInfos, schema })(
                         () => {
                             return (
@@ -267,9 +287,9 @@ function buildAppComponentsRoot(schema) {
                         }
                     )
                 )
-            )
-        ),
-        LoadDataButton
+            ),
+            LoadDataButton
+        )
     )
 }
 
@@ -283,6 +303,8 @@ const AppRoot = (props) => {
         },
     });
 
+    let { appName } = props;
+
     const hasSchema = useSetup(true,
         (finishInitSchema) => {
             updateSchema(Schema);
@@ -292,7 +314,7 @@ const AppRoot = (props) => {
 
     const hasMadeHomepageRequest = useSetup(true,
         (finishHomepageRequest) => {
-            fetch('/auth-guest-login/myapp').then(() => {
+            fetch(`/auth-guest-login/${appName}`).then(() => {
                 finishHomepageRequest();
             });
         }
@@ -301,9 +323,11 @@ const AppRoot = (props) => {
     if(hasSchema && hasMadeHomepageRequest) {
         let AppChild = buildAppComponentsRoot(schema);
         return (
-            <Provider store={formStateStore}>
-                <AppChild></AppChild>
-            </Provider>
+            <ContextAppName.Provider value={appName}>
+                <Provider store={formStateStore}>
+                    <AppChild></AppChild>
+                </Provider>
+            </ContextAppName.Provider>
         )
     }
 }

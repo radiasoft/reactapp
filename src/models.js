@@ -7,27 +7,7 @@ function fetchData() {
     return new Promise((resolve) =>
         setTimeout(() => resolve({
             data: {
-                "dog": {
-                    "breed": "Great Dane " + Math.random(),
-                    "disposition": "friendly",
-                    "favoriteTreat": "",
-                    "gender": "male",
-                    "height": 81.28,
-                    "weight": 70.25
-                },
-                "heightWeightReport": {},
-                "simFolder": {},
-                "simulation": {
-                    "documentationUrl": "",
-                    "folder": "/",
-                    "isExample": true,
-                    "lastModified": 1655830938253,
-                    "name": "Scooby Doo",
-                    "notes": "",
-                    "outOfSessionSimulationId": "",
-                    "simulationId": "vK42jokQ",
-                    "simulationSerial": 1655830938253185
-                },
+                
             },
         }), 500)
     );
@@ -47,8 +27,6 @@ export const modelsSlice = createSlice({
     reducers: {
         updateModel: (state, {payload: {name, value}}) => {
             //state.models[action.payload.name] = cloneDeep(action.payload.value);
-            state.models = {...state.models};
-            state.models[name] = {...state.models[name]};
             state.models[name] = value;
         },
     },

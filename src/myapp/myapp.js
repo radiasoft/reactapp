@@ -6,7 +6,7 @@ const schemaPath = process.env.PUBLIC_URL + '/myapp-schema.json'
 
 const MyAppAppRoot = (props) => {
     return (
-        <AppRoot schemaPath={schemaPath} {...props}></AppRoot>
+        <AppRoot schemaPath={schemaPath} appName={'myapp'} {...props}></AppRoot>
     )
 }
 

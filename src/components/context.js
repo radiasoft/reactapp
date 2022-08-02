@@ -7,3 +7,5 @@ export const ContextReduxModelSelectors = React.createContext();
 
 export const ContextSimulationListPromise = React.createContext();
 export const ContextSimulationInfoPromise = React.createContext();
+
+export const ContextAppName = React.createContext();
