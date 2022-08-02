@@ -90,11 +90,7 @@ let dogView2 = {
 
 let heightWeightReportView = {
     title: 'Physical Characteristics',
-    type: 'graph2d',
-    config: {
-        x: 'dog.weight',
-        y: 'dog.height'
-    }
+    type: 'graph2d'
 }
 
 let views = {
