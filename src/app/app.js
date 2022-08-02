@@ -19,7 +19,7 @@ import {
     updateFormFieldState,
     formStatesSlice
 } from '../formState'
-import "./myapp.scss"
+import "./app.scss"
 import { ViewGrid } from "../components/simulation";
 import Schema from './schema'
 import { Graph2dFromApi } from "../components/graph2d";
